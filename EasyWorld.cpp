@@ -11,39 +11,39 @@ double a[1145][1145];
 double w[1145][1145];
 double l[1145][1145];
 double scale=0.114514;
-// ????
-int playerX = n / 2; // ?????X??
-int playerY = m / 2; // ?????Y??
-// ????????
+// 人物位置
+int playerX = n / 2; // 人物的初始X坐标
+int playerY = m / 2; // 人物的初始Y坐标
+// 柏林噪声生成器类
 class PerlinNoise {
 private:
     int permutation[512];
     
 public:
     PerlinNoise(unsigned int seed) {
-        // ??????
+        // 初始化排列表
         iota(permutation, permutation + 256, 0);
         shuffle(permutation, permutation + 256, default_random_engine(seed));
-        // ??????????
+        // 重复排列表以避免越界
         for (int i = 0; i < 256; ++i)
             permutation[256 + i] = permutation[i];
     }
     
-    // ????????
+    // 生成二维柏林噪声
     double noise(double x, double y) {
-        // ??????
+        // 确定网格单元
         int X = (int)floor(x) & 255;
         int Y = (int)floor(y) & 255;
         
-        // ???????
+        // 网格内相对坐标
         x -= floor(x);
         y -= floor(y);
         
-        // ??????
+        // 计算缓和曲线
         double u = fade(x);
         double v = fade(y);
         
-        // ?????????
+        // 哈希索引周围四个点
         int A = permutation[X] + Y;
         int AA = permutation[A & 255];
         int AB = permutation[(A + 1) & 255];
@@ -51,53 +51,53 @@ public:
         int BA = permutation[B & 255];
         int BB = permutation[(B + 1) & 255];
         
-        // ??????
+        // 混合梯度贡献
         double gradAA = grad(AA, x, y);
         double gradBA = grad(BA, x - 1, y);
         double gradAB = grad(AB, x, y - 1);
         double gradBB = grad(BB, x - 1, y - 1);
         
-        // ?????
+        // 双线性插值
         double lerp1 = lerp(u, gradAA, gradBA);
         double lerp2 = lerp(u, gradAB, gradBB);
         return lerp(v, lerp1, lerp2);
     }
     
 private:
-    // ????:6t^5 - 15t^4 + 10t^3
+    // 缓和曲线：6t^5 - 15t^4 + 10t^3
     static double fade(double t) {
         return t * t * t * (t * (t * 6 - 15) + 10);
     }
     
-    // ????
+    // 线性插值
     static double lerp(double t, double a, double b) {
         return a + t * (b - a);
     }
     
-    // ?????(??????????)
+    // 计算梯度值（使用预定义的四个方向）
     static double grad(int hash, double x, double y) {
         int h = hash & 3;
         switch (h) {
-            case 0: return x + y;    // ???
-            case 1: return -x + y;   // ???
-            case 2: return x - y;    // ???
-            case 3: return -x - y;   // ???
-            default: return 0; // ????
+            case 0: return x + y;    // 右上方
+            case 1: return -x + y;   // 左上方
+            case 2: return x - y;    // 右下方
+            case 3: return -x - y;   // 左下方
+            default: return 0; // 不会执行
         }
     }
 };
 
 
 void build_PerlinNoise(){
-	PerlinNoise pn(time(0)); // ??????????
-	 // ????????
+	PerlinNoise pn(time(0)); // 使用当前时间作为种子
+	 // 生成柏林噪声地形
     for (int i = 1; i <= n; i++) {
         for (int j = 1; j <= m; j++) {
-            // ?????????????
+            // 调整缩放因子以改变地形形态
             double x = i * scale;
             double y = j * scale;
             
-            // ??????(??????)
+            // 生成分形噪声（叠加多个倍频）
             double total = 0.0;
             double frequency = 1.0;
             double amplitude = 1.0;
@@ -110,19 +110,19 @@ void build_PerlinNoise(){
                 amplitude *= 0.5;
                 frequency *= 2.0;
             }
-            total /= maxAmplitude; // ???
+            total /= maxAmplitude; // 归一化
             
-            // ???????0~99?????
+            // 将噪声值转换到0~99并存入数组
             a[i][j] = (total + 1.0) / 2.0 * 255.0;
             mx = max(mx, (int)a[i][j]);
             mn = min(mn, (int)a[i][j]);
         }
     }
 }
-/*** ???? ***/
+/*** 隐藏光标 ***/
 void HideCursor() {
-CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // ??????,???1,????
-SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // ?????????
+CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // 设置光标信息，大小为1，隐藏光标
+SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // 设置控制台光标信息
 }
 void out() {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -163,7 +163,7 @@ void out() {
         }
         sc(7);printf("\n");
     }
-    //sc(7);printf("???????????(by:upb)");
+    //sc(7);printf("这是一个模拟水流的程序(by:upb)");
 	sc(1*16);cout<<" ";sc(9*16);cout<<" ";sc(3*16);cout<<" ";sc(11*16);cout<<" ";sc(14*16);cout<<" ";sc(6*16);cout<<" ";sc(10*16);cout<<" ";sc(2*16);cout<<" ";sc(7*16);cout<<" ";sc(15*16);cout<<" ";sc(7);
 }
 /*
@@ -193,19 +193,19 @@ void flow(){
 */
 
 void flow(){
-    // ???????????
+    // 创建临时数组存储新水量
     double neww[114][114] = {0};
     
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             if(w[i][j] < 0.1) continue;
             
-            // ????
+            // 边界消减
             if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
                 neww[i][j] -= 0.5;
             }
             
-            // ?????
+            // 四方向流动
             int dx[] = {-1, 0, 1, 0};
             int dy[] = {0, -1, 0, 1};
             for(int k=0; k<4; k++){
@@ -223,7 +223,7 @@ void flow(){
         }
     }
     
-    // ????
+    // 应用变化
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             w[i][j] += neww[i][j];
@@ -240,7 +240,7 @@ void movePlayer(char direction) {
     if (direction == 'a') newY--;
     if (direction == 'd') newY++;
 
-    // ??????
+    // 新增边界检查
     if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
         playerX = newX;
         playerY = newY;
@@ -277,7 +277,7 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
         if(ch == 'w' || ch == 'a' || ch == 's' || ch == 'd'){
             movePlayer(ch);
         }
-        else if(ch == 27) break; // ESC??
+        else if(ch == 27) break; // ESC退出
     }
 		for(int i=1;i<=n;i++){
     		for(int j=1;j<=m;j++){
