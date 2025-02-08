@@ -11,39 +11,39 @@ double a[1145][1145];
 double w[1145][1145];
 double l[1145][1145];
 double scale=0.114514;
-// äººç‰©ä½ç½®
-int playerX = n / 2; // äººç‰©çš„åˆå§‹Xåæ ‡
-int playerY = m / 2; // äººç‰©çš„åˆå§‹Yåæ ‡
-// æŸæ—å™ªå£°ç”Ÿæˆå™¨ç±»
+// ÈËÎïÎ»ÖÃ
+int playerX = n / 2; // ÈËÎïµÄ³õÊ¼X×ø±ê
+int playerY = m / 2; // ÈËÎïµÄ³õÊ¼Y×ø±ê
+// °ØÁÖÔëÉùÉú³ÉÆ÷Àà
 class PerlinNoise {
 private:
     int permutation[512];
     
 public:
     PerlinNoise(unsigned int seed) {
-        // åˆå§‹åŒ–æ’åˆ—è¡¨
+        // ³õÊ¼»¯ÅÅÁĞ±í
         iota(permutation, permutation + 256, 0);
         shuffle(permutation, permutation + 256, default_random_engine(seed));
-        // é‡å¤æ’åˆ—è¡¨ä»¥é¿å…è¶Šç•Œ
+        // ÖØ¸´ÅÅÁĞ±íÒÔ±ÜÃâÔ½½ç
         for (int i = 0; i < 256; ++i)
             permutation[256 + i] = permutation[i];
     }
     
-    // ç”ŸæˆäºŒç»´æŸæ—å™ªå£°
+    // Éú³É¶şÎ¬°ØÁÖÔëÉù
     double noise(double x, double y) {
-        // ç¡®å®šç½‘æ ¼å•å…ƒ
+        // È·¶¨Íø¸ñµ¥Ôª
         int X = (int)floor(x) & 255;
         int Y = (int)floor(y) & 255;
         
-        // ç½‘æ ¼å†…ç›¸å¯¹åæ ‡
+        // Íø¸ñÄÚÏà¶Ô×ø±ê
         x -= floor(x);
         y -= floor(y);
         
-        // è®¡ç®—ç¼“å’Œæ›²çº¿
+        // ¼ÆËã»ººÍÇúÏß
         double u = fade(x);
         double v = fade(y);
         
-        // å“ˆå¸Œç´¢å¼•å‘¨å›´å››ä¸ªç‚¹
+        // ¹şÏ£Ë÷ÒıÖÜÎ§ËÄ¸öµã
         int A = permutation[X] + Y;
         int AA = permutation[A & 255];
         int AB = permutation[(A + 1) & 255];
@@ -51,53 +51,53 @@ public:
         int BA = permutation[B & 255];
         int BB = permutation[(B + 1) & 255];
         
-        // æ··åˆæ¢¯åº¦è´¡çŒ®
+        // »ìºÏÌİ¶È¹±Ï×
         double gradAA = grad(AA, x, y);
         double gradBA = grad(BA, x - 1, y);
         double gradAB = grad(AB, x, y - 1);
         double gradBB = grad(BB, x - 1, y - 1);
         
-        // åŒçº¿æ€§æ’å€¼
+        // Ë«ÏßĞÔ²åÖµ
         double lerp1 = lerp(u, gradAA, gradBA);
         double lerp2 = lerp(u, gradAB, gradBB);
         return lerp(v, lerp1, lerp2);
     }
     
 private:
-    // ç¼“å’Œæ›²çº¿ï¼š6t^5 - 15t^4 + 10t^3
+    // »ººÍÇúÏß£º6t^5 - 15t^4 + 10t^3
     static double fade(double t) {
         return t * t * t * (t * (t * 6 - 15) + 10);
     }
     
-    // çº¿æ€§æ’å€¼
+    // ÏßĞÔ²åÖµ
     static double lerp(double t, double a, double b) {
         return a + t * (b - a);
     }
     
-    // è®¡ç®—æ¢¯åº¦å€¼ï¼ˆä½¿ç”¨é¢„å®šä¹‰çš„å››ä¸ªæ–¹å‘ï¼‰
+    // ¼ÆËãÌİ¶ÈÖµ£¨Ê¹ÓÃÔ¤¶¨ÒåµÄËÄ¸ö·½Ïò£©
     static double grad(int hash, double x, double y) {
         int h = hash & 3;
         switch (h) {
-            case 0: return x + y;    // å³ä¸Šæ–¹
-            case 1: return -x + y;   // å·¦ä¸Šæ–¹
-            case 2: return x - y;    // å³ä¸‹æ–¹
-            case 3: return -x - y;   // å·¦ä¸‹æ–¹
-            default: return 0; // ä¸ä¼šæ‰§è¡Œ
+            case 0: return x + y;    // ÓÒÉÏ·½
+            case 1: return -x + y;   // ×óÉÏ·½
+            case 2: return x - y;    // ÓÒÏÂ·½
+            case 3: return -x - y;   // ×óÏÂ·½
+            default: return 0; // ²»»áÖ´ĞĞ
         }
     }
 };
 
 
 void build_PerlinNoise(){
-	PerlinNoise pn(time(0)); // ä½¿ç”¨å½“å‰æ—¶é—´ä½œä¸ºç§å­
-	 // ç”ŸæˆæŸæ—å™ªå£°åœ°å½¢
+	PerlinNoise pn(time(0)); // Ê¹ÓÃµ±Ç°Ê±¼ä×÷ÎªÖÖ×Ó
+	 // Éú³É°ØÁÖÔëÉùµØĞÎ
     for (int i = 1; i <= n; i++) {
         for (int j = 1; j <= m; j++) {
-            // è°ƒæ•´ç¼©æ”¾å› å­ä»¥æ”¹å˜åœ°å½¢å½¢æ€
+            // µ÷ÕûËõ·ÅÒò×ÓÒÔ¸Ä±äµØĞÎĞÎÌ¬
             double x = i * scale;
             double y = j * scale;
             
-            // ç”Ÿæˆåˆ†å½¢å™ªå£°ï¼ˆå åŠ å¤šä¸ªå€é¢‘ï¼‰
+            // Éú³É·ÖĞÎÔëÉù£¨µş¼Ó¶à¸ö±¶Æµ£©
             double total = 0.0;
             double frequency = 1.0;
             double amplitude = 1.0;
@@ -110,19 +110,19 @@ void build_PerlinNoise(){
                 amplitude *= 0.5;
                 frequency *= 2.0;
             }
-            total /= maxAmplitude; // å½’ä¸€åŒ–
+            total /= maxAmplitude; // ¹éÒ»»¯
             
-            // å°†å™ªå£°å€¼è½¬æ¢åˆ°0~99å¹¶å­˜å…¥æ•°ç»„
+            // ½«ÔëÉùÖµ×ª»»µ½0~99²¢´æÈëÊı×é
             a[i][j] = (total + 1.0) / 2.0 * 255.0;
             mx = max(mx, (int)a[i][j]);
             mn = min(mn, (int)a[i][j]);
         }
     }
 }
-/*** éšè—å…‰æ ‡ ***/
+/*** Òş²Ø¹â±ê ***/
 void HideCursor() {
-CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // è®¾ç½®å…‰æ ‡ä¿¡æ¯ï¼Œå¤§å°ä¸º1ï¼Œéšè—å…‰æ ‡
-SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // è®¾ç½®æ§åˆ¶å°å…‰æ ‡ä¿¡æ¯
+CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // ÉèÖÃ¹â±êĞÅÏ¢£¬´óĞ¡Îª1£¬Òş²Ø¹â±ê
+SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // ÉèÖÃ¿ØÖÆÌ¨¹â±êĞÅÏ¢
 }
 void out() {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -163,7 +163,7 @@ void out() {
         }
         sc(7);printf("\n");
     }
-    //sc(7);printf("è¿™æ˜¯ä¸€ä¸ªæ¨¡æ‹Ÿæ°´æµçš„ç¨‹åº(by:upb)");
+    //sc(7);printf("ÕâÊÇÒ»¸öÄ£ÄâË®Á÷µÄ³ÌĞò(by:upb)");
 	sc(1*16);cout<<" ";sc(9*16);cout<<" ";sc(3*16);cout<<" ";sc(11*16);cout<<" ";sc(14*16);cout<<" ";sc(6*16);cout<<" ";sc(10*16);cout<<" ";sc(2*16);cout<<" ";sc(7*16);cout<<" ";sc(15*16);cout<<" ";sc(7);
 }
 /*
@@ -193,19 +193,19 @@ void flow(){
 */
 
 void flow(){
-    // åˆ›å»ºä¸´æ—¶æ•°ç»„å­˜å‚¨æ–°æ°´é‡
+    // ´´½¨ÁÙÊ±Êı×é´æ´¢ĞÂË®Á¿
     double neww[114][114] = {0};
     
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             if(w[i][j] < 0.1) continue;
             
-            // è¾¹ç•Œæ¶ˆå‡
+            // ±ß½çÏû¼õ
             if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
                 neww[i][j] -= 0.5;
             }
             
-            // å››æ–¹å‘æµåŠ¨
+            // ËÄ·½ÏòÁ÷¶¯
             int dx[] = {-1, 0, 1, 0};
             int dy[] = {0, -1, 0, 1};
             for(int k=0; k<4; k++){
@@ -223,7 +223,7 @@ void flow(){
         }
     }
     
-    // åº”ç”¨å˜åŒ–
+    // Ó¦ÓÃ±ä»¯
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             w[i][j] += neww[i][j];
@@ -231,6 +231,7 @@ void flow(){
         }
     }
 }
+/*
 void movePlayer(char direction) {
     int newX = playerX;
     int newY = playerY;
@@ -239,13 +240,74 @@ void movePlayer(char direction) {
     if (direction == 's') newX++;
     if (direction == 'a') newY--;
     if (direction == 'd') newY++;
-
-    // æ–°å¢è¾¹ç•Œæ£€æŸ¥
+    if (direction == 'q') w[playerX][playerY]++;
+	if (direction == 'e') a[playerX][playerY]-=10;
+    // ĞÂÔö±ß½ç¼ì²é
     if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
         playerX = newX;
         playerY = newY;
     }
 }
+*/
+void getMouseClick(int &x, int &y) {
+    POINT pt;
+    GetCursorPos(&pt);
+    HWND hwnd = GetConsoleWindow();
+    ScreenToClient(hwnd, &pt);
+
+    // ½«ÆÁÄ»×ø±ê×ª»»Îª¿ØÖÆÌ¨´°¿Ú×ø±ê
+    CONSOLE_FONT_INFO fontInfo;
+    GetCurrentConsoleFont(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &fontInfo);
+    x = pt.y / fontInfo.dwFontSize.Y + 1;
+    y = pt.x / fontInfo.dwFontSize.X / 2 + 1;
+}
+void Playerdo() {
+    if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
+        	int x, y;
+            getMouseClick(x, y);
+            if (x >= 1 && x <= n && y >= 1 && y <= m) {
+                w[x][y] += 1.0; // ÔÚµã»÷Î»ÖÃ·ÅË®
+            }
+        }
+		if (GetAsyncKeyState('W') & 0x8000) {
+        	int newX = playerX;
+    		int newY = playerY;
+    		newX--;
+    		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
+        		playerX = newX;
+        		playerY = newY;
+    		}
+        }
+        if (GetAsyncKeyState('S') & 0x8000) {
+        	int newX = playerX;
+    		int newY = playerY;
+    		newX++;
+    		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
+        		playerX = newX;
+        		playerY = newY;
+    		}
+        }
+        if (GetAsyncKeyState('A') & 0x8000) {
+        	int newX = playerX;
+    		int newY = playerY;
+    		newY--;
+    		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
+        		playerX = newX;
+        		playerY = newY;
+    		}
+        }
+        if (GetAsyncKeyState('D') & 0x8000) {
+        	int newX = playerX;
+    		int newY = playerY;
+    		newY++;
+    		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
+        		playerX = newX;
+        		playerY = newY;
+    		}
+        }
+        
+}
+
 int main() {
 	DWORD prev_mode;
 HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -267,23 +329,25 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
     		w[i][j]=max(maxx-a[i][j],0.0);
 		}
 	}
-	
-	w[15][15]=9800;
 	system("cls");
 	while(1){
 		//Sleep(250);
-		 if(_kbhit()){
+		/*
+		if(_kbhit()){
         char ch = _getch();
-        if(ch == 'w' || ch == 'a' || ch == 's' || ch == 'd'){
-            movePlayer(ch);
+        if(ch == 'w' || ch == 'a' || ch == 's' || ch == 'd'|| ch == 'q'|| ch == 'e'){
+            //movePlayer(ch);
         }
-        else if(ch == 27) break; // ESCé€€å‡º
+        else if(ch == 27) break; // ESCÍË³ö
     }
+    	
+    	*/
 		for(int i=1;i<=n;i++){
     		for(int j=1;j<=m;j++){
     			l[i][j]=a[i][j]+w[i][j];
 			}
 		}
+		Playerdo();
 		flow();
 		out();
 		bool flag=1;
