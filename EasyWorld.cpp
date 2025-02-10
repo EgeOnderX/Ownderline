@@ -166,32 +166,6 @@ void out() {
     //sc(7);printf("这是一个模拟水流的程序(by:upb)");
 	sc(1*16);cout<<" ";sc(9*16);cout<<" ";sc(3*16);cout<<" ";sc(11*16);cout<<" ";sc(14*16);cout<<" ";sc(6*16);cout<<" ";sc(10*16);cout<<" ";sc(2*16);cout<<" ";sc(7*16);cout<<" ";sc(15*16);cout<<" ";sc(7);
 }
-/*
-void flow(){
-	for(int i=1;i<=n;i++){
-    	for(int j=1;j<=m;j++){
-    		if(w[i][j]==0) continue;
-    		if(w[i][j]>=1&&(i==1||i==n||j==1||j==m)) w[i][j]--;
-    		int dx[] = {-1, 0, 1, 0};
-            int dy[] = {0, -1, 0, 1};
-            for (int k = 0; k < 4; k++) {
-                int ni=i+dx[k];
-                int nj=j+dy[k];
-                
-                if (ni>=1&&ni<=n&&nj>=1&&nj<=m){
-                    if(w[i][j]>0.1&&l[i][j]>l[ni][nj]){
-                        w[i][j]--;
-                        w[ni][nj]++;
-                	}
-                	
-            	}
-            	
-			}
-		}
-	}
-}
-*/
-
 void flow(){
     // 创建临时数组存储新水量
     double neww[114][114] = {0};
@@ -231,24 +205,6 @@ void flow(){
         }
     }
 }
-/*
-void movePlayer(char direction) {
-    int newX = playerX;
-    int newY = playerY;
-    
-    if (direction == 'w') newX--;
-    if (direction == 's') newX++;
-    if (direction == 'a') newY--;
-    if (direction == 'd') newY++;
-    if (direction == 'q') w[playerX][playerY]++;
-	if (direction == 'e') a[playerX][playerY]-=10;
-    // 新增边界检查
-    if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
-        playerX = newX;
-        playerY = newY;
-    }
-}
-*/
 void getMouseClick(int &x, int &y) {
     POINT pt;
     GetCursorPos(&pt);
@@ -312,23 +268,6 @@ void Playerdo() {
         		playerY = newY;
     		}
         }
-        if (GetAsyncKeyState('T') & 0x8000) {
-        	string sss;
-        	cin>>sss;
-        	if(sss=="fa"){
-        		w[playerX-1][playerY-1]=0;
-        		w[playerX-1][playerY]=0;
-        		w[playerX-1][playerY+1]=0;
-        		w[playerX][playerY-1]=0;
-        		w[playerX][playerY]=0;
-        		w[playerX][playerY+1]=0;
-        		w[playerX+1][playerY-1]=0;
-        		w[playerX+1][playerY]=0;
-        		w[playerX+1][playerY+1]=0;
-        		
-			}
-        }
-
 }
 
 int main() {
@@ -355,16 +294,26 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
 	system("cls");
 	while(1){
 		//Sleep(250);
-		/*
+		
 		if(_kbhit()){
         char ch = _getch();
-        if(ch == 'w' || ch == 'a' || ch == 's' || ch == 'd'|| ch == 'q'|| ch == 'e'){
-            //movePlayer(ch);
+        if(ch == 't'){
+        	string sss;
+            cin>>sss;
+            if(sss=="fa"){
+        		w[playerX-1][playerY-1]=0;
+        		w[playerX-1][playerY]=0;
+        		w[playerX-1][playerY+1]=0;
+        		w[playerX][playerY-1]=0;
+        		w[playerX][playerY]=0;
+        		w[playerX][playerY+1]=0;
+        		w[playerX+1][playerY-1]=0;
+        		w[playerX+1][playerY]=0;
+        		w[playerX+1][playerY+1]=0;
+        		
+			}
         }
-        else if(ch == 27) break; // ESC退出
     }
-    	
-    	*/
 		for(int i=1;i<=n;i++){
     		for(int j=1;j<=m;j++){
     			l[i][j]=a[i][j]+w[i][j];
