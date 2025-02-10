@@ -11,39 +11,39 @@ double a[1145][1145];
 double w[1145][1145];
 double l[1145][1145];
 double scale=0.114514;
-// ÈËÎïÎ»ÖÃ
-int playerX = n / 2; // ÈËÎïµÄ³õÊ¼X×ø±ê
-int playerY = m / 2; // ÈËÎïµÄ³õÊ¼Y×ø±ê
-// °ØÁÖÔëÉùÉú³ÉÆ÷Àà
+// äººç‰©ä½ç½®
+int playerX = n / 2; // äººç‰©çš„åˆå§‹Xåæ ‡
+int playerY = m / 2; // äººç‰©çš„åˆå§‹Yåæ ‡
+// æŸæ—å™ªå£°ç”Ÿæˆå™¨ç±»
 class PerlinNoise {
 private:
     int permutation[512];
     
 public:
     PerlinNoise(unsigned int seed) {
-        // ³õÊ¼»¯ÅÅÁĞ±í
+        // åˆå§‹åŒ–æ’åˆ—è¡¨
         iota(permutation, permutation + 256, 0);
         shuffle(permutation, permutation + 256, default_random_engine(seed));
-        // ÖØ¸´ÅÅÁĞ±íÒÔ±ÜÃâÔ½½ç
+        // é‡å¤æ’åˆ—è¡¨ä»¥é¿å…è¶Šç•Œ
         for (int i = 0; i < 256; ++i)
             permutation[256 + i] = permutation[i];
     }
     
-    // Éú³É¶şÎ¬°ØÁÖÔëÉù
+    // ç”ŸæˆäºŒç»´æŸæ—å™ªå£°
     double noise(double x, double y) {
-        // È·¶¨Íø¸ñµ¥Ôª
+        // ç¡®å®šç½‘æ ¼å•å…ƒ
         int X = (int)floor(x) & 255;
         int Y = (int)floor(y) & 255;
         
-        // Íø¸ñÄÚÏà¶Ô×ø±ê
+        // ç½‘æ ¼å†…ç›¸å¯¹åæ ‡
         x -= floor(x);
         y -= floor(y);
         
-        // ¼ÆËã»ººÍÇúÏß
+        // è®¡ç®—ç¼“å’Œæ›²çº¿
         double u = fade(x);
         double v = fade(y);
         
-        // ¹şÏ£Ë÷ÒıÖÜÎ§ËÄ¸öµã
+        // å“ˆå¸Œç´¢å¼•å‘¨å›´å››ä¸ªç‚¹
         int A = permutation[X] + Y;
         int AA = permutation[A & 255];
         int AB = permutation[(A + 1) & 255];
@@ -51,53 +51,53 @@ public:
         int BA = permutation[B & 255];
         int BB = permutation[(B + 1) & 255];
         
-        // »ìºÏÌİ¶È¹±Ï×
+        // æ··åˆæ¢¯åº¦è´¡çŒ®
         double gradAA = grad(AA, x, y);
         double gradBA = grad(BA, x - 1, y);
         double gradAB = grad(AB, x, y - 1);
         double gradBB = grad(BB, x - 1, y - 1);
         
-        // Ë«ÏßĞÔ²åÖµ
+        // åŒçº¿æ€§æ’å€¼
         double lerp1 = lerp(u, gradAA, gradBA);
         double lerp2 = lerp(u, gradAB, gradBB);
         return lerp(v, lerp1, lerp2);
     }
     
 private:
-    // »ººÍÇúÏß£º6t^5 - 15t^4 + 10t^3
+    // ç¼“å’Œæ›²çº¿ï¼š6t^5 - 15t^4 + 10t^3
     static double fade(double t) {
         return t * t * t * (t * (t * 6 - 15) + 10);
     }
     
-    // ÏßĞÔ²åÖµ
+    // çº¿æ€§æ’å€¼
     static double lerp(double t, double a, double b) {
         return a + t * (b - a);
     }
     
-    // ¼ÆËãÌİ¶ÈÖµ£¨Ê¹ÓÃÔ¤¶¨ÒåµÄËÄ¸ö·½Ïò£©
+    // è®¡ç®—æ¢¯åº¦å€¼ï¼ˆä½¿ç”¨é¢„å®šä¹‰çš„å››ä¸ªæ–¹å‘ï¼‰
     static double grad(int hash, double x, double y) {
         int h = hash & 3;
         switch (h) {
-            case 0: return x + y;    // ÓÒÉÏ·½
-            case 1: return -x + y;   // ×óÉÏ·½
-            case 2: return x - y;    // ÓÒÏÂ·½
-            case 3: return -x - y;   // ×óÏÂ·½
-            default: return 0; // ²»»áÖ´ĞĞ
+            case 0: return x + y;    // å³ä¸Šæ–¹
+            case 1: return -x + y;   // å·¦ä¸Šæ–¹
+            case 2: return x - y;    // å³ä¸‹æ–¹
+            case 3: return -x - y;   // å·¦ä¸‹æ–¹
+            default: return 0; // ä¸ä¼šæ‰§è¡Œ
         }
     }
 };
 
 
 void build_PerlinNoise(){
-	PerlinNoise pn(time(0)); // Ê¹ÓÃµ±Ç°Ê±¼ä×÷ÎªÖÖ×Ó
-	 // Éú³É°ØÁÖÔëÉùµØĞÎ
+	PerlinNoise pn(time(0)); // ä½¿ç”¨å½“å‰æ—¶é—´ä½œä¸ºç§å­
+	 // ç”ŸæˆæŸæ—å™ªå£°åœ°å½¢
     for (int i = 1; i <= n; i++) {
         for (int j = 1; j <= m; j++) {
-            // µ÷ÕûËõ·ÅÒò×ÓÒÔ¸Ä±äµØĞÎĞÎÌ¬
+            // è°ƒæ•´ç¼©æ”¾å› å­ä»¥æ”¹å˜åœ°å½¢å½¢æ€
             double x = i * scale;
             double y = j * scale;
             
-            // Éú³É·ÖĞÎÔëÉù£¨µş¼Ó¶à¸ö±¶Æµ£©
+            // ç”Ÿæˆåˆ†å½¢å™ªå£°ï¼ˆå åŠ å¤šä¸ªå€é¢‘ï¼‰
             double total = 0.0;
             double frequency = 1.0;
             double amplitude = 1.0;
@@ -110,19 +110,19 @@ void build_PerlinNoise(){
                 amplitude *= 0.5;
                 frequency *= 2.0;
             }
-            total /= maxAmplitude; // ¹éÒ»»¯
+            total /= maxAmplitude; // å½’ä¸€åŒ–
             
-            // ½«ÔëÉùÖµ×ª»»µ½0~99²¢´æÈëÊı×é
+            // å°†å™ªå£°å€¼è½¬æ¢åˆ°0~99å¹¶å­˜å…¥æ•°ç»„
             a[i][j] = (total + 1.0) / 2.0 * 255.0;
             mx = max(mx, (int)a[i][j]);
             mn = min(mn, (int)a[i][j]);
         }
     }
 }
-/*** Òş²Ø¹â±ê ***/
+/*** éšè—å…‰æ ‡ ***/
 void HideCursor() {
-CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // ÉèÖÃ¹â±êĞÅÏ¢£¬´óĞ¡Îª1£¬Òş²Ø¹â±ê
-SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // ÉèÖÃ¿ØÖÆÌ¨¹â±êĞÅÏ¢
+CONSOLE_CURSOR_INFO cursor_info = {1, 0}; // è®¾ç½®å…‰æ ‡ä¿¡æ¯ï¼Œå¤§å°ä¸º1ï¼Œéšè—å…‰æ ‡
+SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info); // è®¾ç½®æ§åˆ¶å°å…‰æ ‡ä¿¡æ¯
 }
 void out() {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -163,7 +163,7 @@ void out() {
         }
         sc(7);printf("\n");
     }
-    //sc(7);printf("ÕâÊÇÒ»¸öÄ£ÄâË®Á÷µÄ³ÌĞò(by:upb)");
+    //sc(7);printf("è¿™æ˜¯ä¸€ä¸ªæ¨¡æ‹Ÿæ°´æµçš„ç¨‹åº(by:upb)");
 	sc(1*16);cout<<" ";sc(9*16);cout<<" ";sc(3*16);cout<<" ";sc(11*16);cout<<" ";sc(14*16);cout<<" ";sc(6*16);cout<<" ";sc(10*16);cout<<" ";sc(2*16);cout<<" ";sc(7*16);cout<<" ";sc(15*16);cout<<" ";sc(7);
 }
 /*
@@ -193,19 +193,19 @@ void flow(){
 */
 
 void flow(){
-    // ´´½¨ÁÙÊ±Êı×é´æ´¢ĞÂË®Á¿
+    // åˆ›å»ºä¸´æ—¶æ•°ç»„å­˜å‚¨æ–°æ°´é‡
     double neww[114][114] = {0};
     
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             if(w[i][j] < 0.1) continue;
             
-            // ±ß½çÏû¼õ
+            // è¾¹ç•Œæ¶ˆå‡
             if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
                 neww[i][j] -= 0.5;
             }
             
-            // ËÄ·½ÏòÁ÷¶¯
+            // å››æ–¹å‘æµåŠ¨
             int dx[] = {-1, 0, 1, 0};
             int dy[] = {0, -1, 0, 1};
             for(int k=0; k<4; k++){
@@ -223,7 +223,7 @@ void flow(){
         }
     }
     
-    // Ó¦ÓÃ±ä»¯
+    // åº”ç”¨å˜åŒ–
     for(int i=1;i<=n;i++){
         for(int j=1;j<=m;j++){
             w[i][j] += neww[i][j];
@@ -242,7 +242,7 @@ void movePlayer(char direction) {
     if (direction == 'd') newY++;
     if (direction == 'q') w[playerX][playerY]++;
 	if (direction == 'e') a[playerX][playerY]-=10;
-    // ĞÂÔö±ß½ç¼ì²é
+    // æ–°å¢è¾¹ç•Œæ£€æŸ¥
     if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
         playerX = newX;
         playerY = newY;
@@ -255,7 +255,7 @@ void getMouseClick(int &x, int &y) {
     HWND hwnd = GetConsoleWindow();
     ScreenToClient(hwnd, &pt);
 
-    // ½«ÆÁÄ»×ø±ê×ª»»Îª¿ØÖÆÌ¨´°¿Ú×ø±ê
+    // å°†å±å¹•åæ ‡è½¬æ¢ä¸ºæ§åˆ¶å°çª—å£åæ ‡
     CONSOLE_FONT_INFO fontInfo;
     GetCurrentConsoleFont(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &fontInfo);
     x = pt.y / fontInfo.dwFontSize.Y + 1;
@@ -266,7 +266,14 @@ void Playerdo() {
         	int x, y;
             getMouseClick(x, y);
             if (x >= 1 && x <= n && y >= 1 && y <= m) {
-                w[x][y] += 1.0; // ÔÚµã»÷Î»ÖÃ·ÅË®
+                w[x][y] += 5.0; // åœ¨ç‚¹å‡»ä½ç½®æ”¾æ°´
+            }
+        }
+    if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
+        	int x, y;
+            getMouseClick(x, y);
+            if (x >= 1 && x <= n && y >= 1 && y <= m) {
+                w[x][y] += 5.0; // åœ¨ç‚¹å‡»ä½ç½®æ”¾æ°´
             }
         }
 		if (GetAsyncKeyState('W') & 0x8000) {
@@ -305,7 +312,23 @@ void Playerdo() {
         		playerY = newY;
     		}
         }
-        
+        if (GetAsyncKeyState('T') & 0x8000) {
+        	string sss;
+        	cin>>sss;
+        	if(sss=="fa"){
+        		w[playerX-1][playerY-1]=0;
+        		w[playerX-1][playerY]=0;
+        		w[playerX-1][playerY+1]=0;
+        		w[playerX][playerY-1]=0;
+        		w[playerX][playerY]=0;
+        		w[playerX][playerY+1]=0;
+        		w[playerX+1][playerY-1]=0;
+        		w[playerX+1][playerY]=0;
+        		w[playerX+1][playerY+1]=0;
+        		
+			}
+        }
+
 }
 
 int main() {
@@ -313,7 +336,7 @@ int main() {
 HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
 GetConsoleMode(hStdin, &prev_mode);
 SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT));
-	system("mode con cols=50 lines=26");
+	system("mode con cols=51 lines=26");
 	HideCursor();
 	build_PerlinNoise();
 	/*
@@ -338,7 +361,7 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
         if(ch == 'w' || ch == 'a' || ch == 's' || ch == 'd'|| ch == 'q'|| ch == 'e'){
             //movePlayer(ch);
         }
-        else if(ch == 27) break; // ESCÍË³ö
+        else if(ch == 27) break; // ESCé€€å‡º
     }
     	
     	*/
