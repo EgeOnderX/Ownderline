@@ -112,7 +112,7 @@ void build_PerlinNoise(){
             }
             total /= maxAmplitude; // 归一化
             
-            // 将噪声值转换到0~99并存入数组
+            // 将噪声值转换到0~255并存入数组
             a[i][j] = (total + 1.0) / 2.0 * 255.0;
             mx = max(mx, (int)a[i][j]);
             mn = min(mn, (int)a[i][j]);
@@ -339,3 +339,4 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
 	cout<<sum;
     return 0;
 }
+//wprintf(L"\033[48;2;%d;%d;%dm\x1b[38;2;%d;%d;%dmLG\n", r, g, b, r, g, b);
