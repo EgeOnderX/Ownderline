@@ -222,14 +222,14 @@ void Playerdo() {
         	int x, y;
             getMouseClick(x, y);
             if (x >= 1 && x <= n && y >= 1 && y <= m) {
-                w[x][y] += 5.0; // 在点击位置放水
+                w[x][y] += 10.0; // 在点击位置放水
             }
         }
     if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
         	int x, y;
             getMouseClick(x, y);
             if (x >= 1 && x <= n && y >= 1 && y <= m) {
-                w[x][y] += 5.0; // 在点击位置放水
+                w[x][y] += 10.0; // 在点击位置放水
             }
         }
 		if (GetAsyncKeyState('W') & 0x8000) {
@@ -268,6 +268,20 @@ void Playerdo() {
         		playerY = newY;
     		}
         }
+        if (GetAsyncKeyState('T') & 0x8000) {
+        	
+        		w[playerX-1][playerY-1]=0;
+        		w[playerX-1][playerY]=0;
+        		w[playerX-1][playerY+1]=0;
+        		w[playerX][playerY-1]=0;
+        		w[playerX][playerY]=0;
+        		w[playerX][playerY+1]=0;
+        		w[playerX+1][playerY-1]=0;
+        		w[playerX+1][playerY]=0;
+        		w[playerX+1][playerY+1]=0;
+        		
+			
+        }
 }
 
 int main() {
@@ -294,26 +308,6 @@ SetConsoleMode(hStdin, ENABLE_EXTENDED_FLAGS | (prev_mode & ~ENABLE_ECHO_INPUT))
 	system("cls");
 	while(1){
 		//Sleep(250);
-		
-		if(_kbhit()){
-        char ch = _getch();
-        if(ch == 't'){
-        	string sss;
-            cin>>sss;
-            if(sss=="fa"){
-        		w[playerX-1][playerY-1]=0;
-        		w[playerX-1][playerY]=0;
-        		w[playerX-1][playerY+1]=0;
-        		w[playerX][playerY-1]=0;
-        		w[playerX][playerY]=0;
-        		w[playerX][playerY+1]=0;
-        		w[playerX+1][playerY-1]=0;
-        		w[playerX+1][playerY]=0;
-        		w[playerX+1][playerY+1]=0;
-        		
-			}
-        }
-    }
 		for(int i=1;i<=n;i++){
     		for(int j=1;j<=m;j++){
     			l[i][j]=a[i][j]+w[i][j];
