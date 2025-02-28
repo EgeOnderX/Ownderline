@@ -1,20 +1,27 @@
-#include <bits/stdc++.h>
 #include <raylib.h>
-#define itn int
-#define sc(s) SetConsoleTextAttribute(hOut,s)
+#include <raymath.h>
+#include <algorithm>
+#include <random>
 using namespace std;
-int maxx=0;
-int mx,mn;
-int n=114, m=114;
-double a[1145][1145];
-double w[1145][1145];
-double l[1145][1145];
-double neww[1145][1145];
-double scale=0.05;
-// 人物位置
-int playerX = n / 2; // 人物的初始X坐标
-int playerY = m / 2; // 人物的初始Y坐标
-// 柏林噪声生成器类
+
+// 地形参数
+const int n = 314, m = 314;
+double a[1145][1145] = {0};
+double w[1145][1145] = {0};
+double l[1145][1145] = {0};
+double scale = 0.03;
+
+// 玩家参数
+float playerX = n / 2.0f;
+float playerY = m / 2.0f;
+float playerRotation = 0.0f;      // 玩家水平旋转角度
+float moveSpeed = 11.4514f; 
+
+// 摄像机参数
+float cameraDistance = 8.0f;      // 摄像机跟随距离
+float cameraHeight = 2.5f;        // 摄像机高度
+float mouseSensitivity = 0.2f;    // 鼠标灵敏度
+
 class PerlinNoise {
 private:
 	int permutation[512];
@@ -114,236 +121,104 @@ void build_PerlinNoise(){
 			
 			// 将噪声值转换到0~255并存入数组
 			a[i][j] = (total + 1.0) / 2.0 * 255.0;
-			mx = max(mx, (int)a[i][j]);
-			mn = min(mn, (int)a[i][j]);
-		}
-	}
-}
-
-void flow(){
-	memset(neww,0,sizeof(neww));
-	double neww[114][114] = {0};
-	
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			if(w[i][j] < 0.1) continue;
-			
-			// 边界消减
-			if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
-				neww[i][j] -= 0.5;
-			}
-			
-			// 四方向流动
-			int dx[] = {-1, 0, 1, 0};
-			int dy[] = {0, -1, 0, 1};
-			for(int k=0; k<4; k++){
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				
-				if(ni>=1 && ni<=n && nj>=1 && nj<=m){
-					if(l[i][j] > l[ni][nj]){
-						double flowAmount = min(w[i][j], (l[i][j] - l[ni][nj])*0.1);
-						neww[i][j] -= flowAmount;
-						neww[ni][nj] += flowAmount;
-					}
-				}
-			}
-		}
-	}
-	
-	// 应用变化
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			w[i][j] += neww[i][j];
-			if(w[i][j] < 0) w[i][j] = 0;
+			// = max(mx, (int)a[i][j]);
+			//mn = min(mn, (int)a[i][j]);
 		}
 	}
 }
 
 void Playerdo() {
-	/*
-	if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
-		int x, y;
-		//getMouseClick(x, y);
-		if (x >= 1 && x <= n && y >= 1 && y <= m) {
-			w[x][y] += 10.0; // 在点击位置放水
-		}
-	}
-	if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
-		int x, y;
-		//getMouseClick(x, y);
-		if (x >= 1 && x <= n && y >= 1 && y <= m) {
-			w[x][y] += 10.0; // 在点击位置放水
-		}
-	}
-	*/
-	if (IsKeyDown(KEY_SPACE)) {
-		int x = playerX;
-		int y = playerY;
-		//getMouseClick(x, y);
-		if (x >= 1 && x <= n && y >= 1 && y <= m) {
-			w[x][y] += 10.0; // 在点击位置放水
-		}
-	} 
-	if (IsKeyDown(KEY_W)) {
-		int newX = playerX;
-		int newY = playerY;
-		newX++;
-		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
-			playerX = newX;
-			playerY = newY;
-		}
-	} 
-	if (IsKeyDown(KEY_S)) {
-		int newX = playerX;
-		int newY = playerY;
-		newX--;
-		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
-			playerX = newX;
-			playerY = newY;
-		}
-	}
-	if (IsKeyDown(KEY_A)) {
-		int newX = playerX;
-		int newY = playerY;
-		newY--;
-		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
-			playerX = newX;
-			playerY = newY;
-		}
-	}
-	if (IsKeyDown(KEY_D)) {
-		int newX = playerX;
-		int newY = playerY;
-		newY++;
-		if(newX >= 1 && newX <= n && newY >= 1 && newY <= m){
-			playerX = newX;
-			playerY = newY;
-		}
-	}
-	if (IsKeyDown(KEY_T)) {
-		
-		w[playerX-1][playerY-1]=0;
-		w[playerX-1][playerY]=0;
-		w[playerX-1][playerY+1]=0;
-		w[playerX][playerY-1]=0;
-		w[playerX][playerY]=0;
-		w[playerX][playerY+1]=0;
-		w[playerX+1][playerY-1]=0;
-		w[playerX+1][playerY]=0;
-		w[playerX+1][playerY+1]=0;
-		
-		
-	}
-}
-void DrawBox(int p1x,int p1y,int p1z,int p2x,int p2y,int p2z, Color color) {
-	// 计算尺寸
-	Vector3 size = {
-		.x = fabsf(p2x - p1x),
-		.y = fabsf(p2y - p1y),
-		.z = fabsf(p2z - p1z)
+	Vector2 inputDir = {0};
+	if (IsKeyDown(KEY_W)) inputDir.y = 1;
+	if (IsKeyDown(KEY_S)) inputDir.y = -1;
+	if (IsKeyDown(KEY_A)) inputDir.x = 1;
+	if (IsKeyDown(KEY_D)) inputDir.x = -1;
+	
+	// 修复方向计算
+	float cosTheta = cosf(DEG2RAD * playerRotation);
+	float sinTheta = sinf(DEG2RAD * playerRotation);
+	Vector3 moveDir = {
+		inputDir.x * cosTheta + inputDir.y * sinTheta,  // 修复方向符号
+		0.0f,
+		inputDir.y * cosTheta - inputDir.x * sinTheta   // 修复方向符号
 	};
 	
-	// 计算中心点
-	Vector3 center = {
-		.x = (p1x + p2x) / 2,
-		.y = (p1y + p2y) / 2,
-		.z = (p1z + p2z) / 2
-	};
+	// 应用速度参数和帧时间
+	float deltaTime = GetFrameTime();
+	playerX = Clamp(playerX + moveDir.x * moveSpeed * deltaTime, 1.0f, n-1.0f);
+	playerY = Clamp(playerY + moveDir.z * moveSpeed * deltaTime, 1.0f, m-1.0f);
 	
-	// 绘制实体和线框
-	DrawCube(center, size.x, size.y, size.z, color);
-	DrawCubeWires(center, size.x, size.y, size.z, BLACK);
+	
+	// 交互操作
+	if (IsKeyPressed(KEY_SPACE)) w[(int)playerX][(int)playerY] += 10.0;
+	if (IsKeyPressed(KEY_T)) {
+		for (int dx = -1; dx <= 1; ++dx)
+			for (int dy = -1; dy <= 1; ++dy)
+				w[(int)playerX+dx][(int)playerY+dy] = 0;
+	}
 }
-float cameraDistance = 15.0f;    // 摄像机跟随距离
-float cameraHeight = 10.0f;      // 摄像机基础高度
-float cameraLookAtHeight = 2.0f; // 摄像机注视点高度偏移
+
 int main() {
 	build_PerlinNoise();
-	
-	const int screenWidth = 640;
-	const int screenHeight = 480;
-	
-	SetConfigFlags(FLAG_MSAA_4X_HINT);
-	InitWindow(screenWidth, screenHeight, "3D Terrain with Camera Follow");
+	InitWindow(1280, 720, "3D Terrain");
+	SetTargetFPS(60);
+	DisableCursor();
 	
 	Camera3D camera = { 0 };
-	// 初始化摄像机参数
-	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
-	camera.fovy = 70.0f;
+	camera.fovy = 60.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
-	
-	SetTargetFPS(30);
+	camera.up = {0, 1, 0};
 	
 	while (!WindowShouldClose()) {
-		Playerdo();
-		//flow();
+		// 鼠标控制
+		Vector2 mouseDelta = GetMouseDelta();
+		playerRotation -= mouseDelta.x * mouseSensitivity;
 		
-		// 更新摄像机位置和方向----------------------------------------
-		// 计算玩家实际三维坐标
+		// 更新摄像机
 		Vector3 playerPos = {
-			(float)playerX, 
-			a[playerX][playerY] * 0.1f,  // 地形高度
-			(float)playerY
+			playerX,
+			a[(int)playerX][(int)playerY] * 0.1f,
+			playerY
 		};
 		
-		// 计算摄像机位置（玩家后方上方）
 		camera.position = {
-			playerPos.x - cameraDistance,
+			playerPos.x - cameraDistance * sinf(DEG2RAD * playerRotation),
 			playerPos.y + cameraHeight,
-			playerPos.z - cameraDistance
+			playerPos.z - cameraDistance * cosf(DEG2RAD * playerRotation)
 		};
+		camera.target = playerPos;
 		
-		// 计算摄像机注视点（玩家位置稍上方）
-		camera.target = {
-			playerPos.x,
-			playerPos.y + cameraLookAtHeight,
-			playerPos.z
-		};
-		//-----------------------------------------------------------
+		Playerdo();
 		
 		BeginDrawing();
-		ClearBackground(WHITE);
+		ClearBackground(SKYBLUE);
 		BeginMode3D(camera);
 		
 		// 绘制地形
-		for(int i=1;i<=n;i++){
-			for(int j=1;j<=m;j++){
-				// 地形方块
-				DrawCube(
-					(Vector3){i, a[i][j]*0.05f, j}, // 调整高度为5%避免地形过高
-					1.0f, a[i][j]*0.1f, 1.0f,
-					Color{ 100, (unsigned char)(a[i][j]), 100, 255 } // 根据高度着色
-					);
+		for (int i = 1; i <= n; ++i) {
+			for (int j = 1; j <= m; ++j) {
+				Vector3 pos = { (float)i, a[i][j] * 0.05f, (float)j };
+				DrawCubeV(pos, {1.0f, a[i][j]*0.1f, 1.0f}, Color{ 100, (unsigned char)a[i][j], 100, 255 });
 				
-				// 水位绘制
-				if(w[i][j] > 0.1f) {
-					DrawCube(
-						(Vector3){i, (a[i][j]+w[i][j])*0.05f, j},
-						0.8f, w[i][j]*0.1f, 0.8f,
-						BLUE
-						);
+				if (w[i][j] > 0.1f) {
+					Vector3 waterPos = { pos.x, pos.y + w[i][j]*0.05f, pos.z };
+					DrawCubeV(waterPos, {0.8f, w[i][j]*0.1f, 0.8f}, BLUE);
 				}
 			}
 		}
 		
-		// 绘制玩家（红色立方体）
-		DrawCube(playerPos, 0.8f, 1.6f, 0.8f, RED);
-		DrawCubeWires(playerPos, 0.8f, 1.6f, 0.8f, DARKGRAY);
+		// 绘制玩家
+		DrawCubeV(playerPos, {0.8f, 1.6f, 0.8f}, RED);
+		DrawCubeWiresV(playerPos, {0.8f, 1.6f, 0.8f}, DARKGRAY);
 		
-		// 绘制辅助网格
-		DrawGrid(n, 1.0f);
 		EndMode3D();
 		
-		// 显示调试信息
-		DrawText(TextFormat("Player Position: (%d, %d)", playerX, playerY), 10, 10, 20, BLACK);
-		DrawFPS(10, 30);
-		
+		// 调试信息
+		DrawText(TextFormat("Position: (%.1f, %.1f)", playerX, playerY), 10, 10, 20, BLACK);
+		DrawFPS(10, 40);
 		EndDrawing();
 	}
 	
-	//关闭窗口
 	CloseWindow();
 	return 0;
 }
-//wprintf(L"\033[48;2;%d;%d;%dm\x1b[38;2;%d;%d;%dmLG\n", r, g, b, r, g, b);
