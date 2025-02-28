@@ -9,6 +9,7 @@ int n=114, m=114;
 double a[1145][1145];
 double w[1145][1145];
 double l[1145][1145];
+double neww[1145][1145];
 double scale=0.05;
 // 人物位置
 int playerX = n / 2; // 人物的初始X坐标
@@ -120,7 +121,7 @@ void build_PerlinNoise(){
 }
 
 void flow(){
-	// 创建临时数组存储新水量
+	memset(neww,0,sizeof(neww));
 	double neww[114][114] = {0};
 	
 	for(int i=1;i<=n;i++){
