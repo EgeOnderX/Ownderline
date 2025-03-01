@@ -2,18 +2,22 @@
 #include <raymath.h>
 #include <bits/stdc++.h>
 using namespace std;
+// 方块类型枚举
 // 地形参数
-const int n = 1192, m = 1192;
-double a[8245][8245];
+const int n = 192, m = 192;
+const int WORLD_HEIGHT = 256;      // 世界总高度
+int a[245][WORLD_HEIGHT][245];  // 三维方块数据 [x][y][z]
+double heightMap[8245][8245];     // 保留高度图用于地形生成
 double w[8245][8245];
 double l[1145][1145];
 double neww[8245][8245];
 double scale = 0.05;
 const int octaves = 3;
-double BeAbleSee=128;
+double BeAbleSee=64;
 
 // 玩家参数
 float playerX = n / 2.0f;
+float playerY = 255;
 float playerZ = m / 2.0f;
 float playerRotation = 0.0f;      // 玩家水平旋转角度
 float moveSpeed = 11.4514f; 
@@ -24,39 +28,30 @@ float cameraHeight = 2.5f;        // 摄像机高度
 float mouseSensitivity = 0.3f;    // 鼠标灵敏度
 float cameraPitch = 0.0f;          // 新增垂直视角角度
 const float MAX_PITCH = 89.0f;     // 最大俯仰角度
-
-// 新增函数：读取灰度PNG到地形数据
-bool LoadHeightmapFromPNG(const char* filename) {
-	// 加载图像
-	Image img = LoadImage(filename);
-	if (!img.data) {
-		TraceLog(LOG_WARNING, "无法加载高度图文件: %s", filename);
-		return false;
-	}
-	
-	// 转换为灰度格式（确保单通道）
-	ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_GRAYSCALE);
-	
-	// 检查尺寸是否匹配
-	if (img.width != n || img.height != m) {
-		TraceLog(LOG_WARNING, "图像尺寸不匹配，需要 %dx%d，实际 %dx%d", 
-			n, m, img.width, img.height);
-		UnloadImage(img);
-		return false;
-	}
-	
-	// 提取灰度数据
-	unsigned char *grayData = (unsigned char*)img.data;
-	for (int y = 1; y < m; ++y) {
-		for (int x = 1; x < n; ++x) {
-			// 图像Y轴需要翻转（图像原点在左上，地形原点在左下）
-			int imgY = m - 1 - y;
-			a[x+1][y+1] = static_cast<double>(grayData[imgY * n + x]);
+void DrawTerrain() {
+	for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; ++i) {
+		for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; ++j) {
+			if (i < 1 || i >= n || j < 1 || j >= m) continue;
+			
+			// 从顶部向下扫描找到第一个非空气方块
+			for (int y = WORLD_HEIGHT-1; y >= 0; y--) {
+				if (a[i][y][j] != 0) {
+					Color blockColor = GRAY;
+					switch (a[i][y][j]) {
+						case 3: blockColor = DARKGRAY; break;
+						case 2: blockColor = BROWN; break;
+						case 1: blockColor = GREEN; break;
+						case 4: blockColor = BLUE; break;
+					}
+					
+					Vector3 pos = { (float)i, (float)y, (float)j };
+					DrawCubeV(pos, Vector3{1.0f, 1.0f, 1.0f}, blockColor);
+					if(a[i+1][y][j]>0&&a[i-1][y][j]>0&&a[i][y+1][j]>0&&a[i][y-1][j]>0&&a[i][y][j+1]>0&&a[i][y][j-1]>0) continue;
+					//break; // 只绘制最顶层的方块
+				}
+			}
 		}
 	}
-	
-	UnloadImage(img);
-	return true;
 }
 
 
@@ -133,8 +128,10 @@ private:
 };
 
 
-void build_PerlinNoise(){
+void build_PerlinNoise() {
 	PerlinNoise pn(time(0));
+	
+	// 生成高度图
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
 			double x = i * scale;
@@ -148,22 +145,40 @@ void build_PerlinNoise(){
 			for (int k = 0; k < octaves; ++k) {
 				total += pn.noise(x * frequency, y * frequency) * amplitude;
 				maxAmplitude += amplitude;
-				amplitude *= 0.4;  // 增加衰减速度
-				frequency *= 1.8;  // 降低频率倍增
+				amplitude *= 0.4;
+				frequency *= 1.8;
 			}
-			a[i][j] = (total / maxAmplitude + 1.0) / 2.0 * 255.0;
+			heightMap[i][j] = (total / maxAmplitude + 1.0) / 2.0 * WORLD_HEIGHT;
 		}
 	}
 	
-	// 添加平滑滤波
-	for(int s = 0; s < 2; ++s) {  // 进行2次平滑
-		for(int i = 2; i < n; ++i) {
-			for(int j = 2; j < m; ++j) {
-				a[i][j] = (a[i-1][j] + a[i+1][j] + a[i][j-1] + a[i][j+1] + 4*a[i][j]) / 8.0;
+	// 根据高度图生成方块
+	for (int x = 1; x <= n; x++) {
+		for (int z = 1; z <= m; z++) {
+			int surfaceHeight = (int)heightMap[x][z];
+			
+			for (int y = 0; y < WORLD_HEIGHT; y++) {
+				if (y > surfaceHeight) {
+					a[x][y][z] = 0;
+				} else if (y == surfaceHeight) {
+					a[x][y][z] = 1;
+				} else if (y > surfaceHeight - 4) {
+					a[x][y][z] = 2;
+				} else {
+					a[x][y][z] = 3;
+				}
+			}
+			
+			// 处理水面
+			if (surfaceHeight < WORLD_HEIGHT / 2) {
+				for (int y = surfaceHeight + 1; y <= WORLD_HEIGHT / 2; y++) {
+					a[x][y][z] = 4;
+				}
 			}
 		}
 	}
 }
+
 
 void Playerdo() {
 	Vector2 inputDir = {0};
@@ -195,47 +210,49 @@ void Playerdo() {
 				w[(int)playerX+dx][(int)playerZ+dy] = 0;
 	}
 }
+/*
 void flow(){
-	memset(neww,0,sizeof(neww));
-	
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			if(w[i][j] < 0.1) continue;
-			
-			// 边界消减（减缓消减速度）
-			if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
-				neww[i][j] -= 0.1; // 改为每次减少0.1
-			}
-			
-			// 四方向流动（使用实际地形a数组）
-			int dx[] = {-1, 0, 1, 0};
-			int dy[] = {0, -1, 0, 1};
-			for(int k=0; k<4; k++){
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				
-				if(ni>=1 && ni<=n && nj>=1 && nj<=m){
-					// 比较实际地形高度a，而不是l
-					if(a[i][j] + w[i][j] > a[ni][nj] + w[ni][nj]){ // 考虑水位高度
-						double heightDiff = (a[i][j] + w[i][j]) - (a[ni][nj] + w[ni][nj]);
-						double flowAmount = min(w[i][j], heightDiff * 0.2); // 增加流动系数
-						flowAmount = max(flowAmount, 0.0);
-						neww[i][j] -= flowAmount;
-						neww[ni][nj] += flowAmount;
-					}
-				}
-			}
-		}
-	}
-	
-	// 应用变化
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			w[i][j] += neww[i][j];
-			w[i][j] = max(w[i][j], 0.0);
-		}
-	}
+memset(neww,0,sizeof(neww));
+
+for(int i=1;i<=n;i++){
+for(int j=1;j<=m;j++){
+if(w[i][j] < 0.1) continue;
+
+// 边界消减（减缓消减速度）
+if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
+neww[i][j] -= 0.1; // 改为每次减少0.1
 }
+
+// 四方向流动（使用实际地形a数组）
+int dx[] = {-1, 0, 1, 0};
+int dy[] = {0, -1, 0, 1};
+for(int k=0; k<4; k++){
+int ni = i + dx[k];
+int nj = j + dy[k];
+
+if(ni>=1 && ni<=n && nj>=1 && nj<=m){
+// 比较实际地形高度a，而不是l
+if(a[i][j] + w[i][j] > a[ni][nj] + w[ni][nj]){ // 考虑水位高度
+double heightDiff = (a[i][j] + w[i][j]) - (a[ni][nj] + w[ni][nj]);
+double flowAmount = min(w[i][j], heightDiff * 0.2); // 增加流动系数
+flowAmount = max(flowAmount, 0.0);
+neww[i][j] -= flowAmount;
+neww[ni][nj] += flowAmount;
+}
+}
+}
+}
+}
+
+// 应用变化
+for(int i=1;i<=n;i++){
+for(int j=1;j<=m;j++){
+w[i][j] += neww[i][j];
+w[i][j] = max(w[i][j], 0.0);
+}
+}
+}
+*/
 int main() {
 	build_PerlinNoise();
 	//LoadHeightmapFromPNG("global_heightmap_8192.png");
@@ -257,7 +274,7 @@ int main() {
 		// 更新摄像机
 		Vector3 playerPos = {
 			playerX,
-			a[(int)playerX][(int)playerZ] * 0.1f,
+			playerY,
 			playerZ
 		};
 		camera.position = {
@@ -279,19 +296,7 @@ int main() {
 		BeginMode3D(camera);
 		
 		// 绘制地形
-		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; ++i) {
-			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; ++j) {
-				Vector3 pos = { (float)i, a[i][j] * 0.05f, (float)j };
-				DrawCubeV(pos, {1.0f, a[i][j]*0.1f, 1.0f}, Color{ 100, (unsigned char)a[i][j], 100, 255 });
-				
-				if (w[i][j] > 0.0f) {
-					Vector3 waterPos = { pos.x, pos.y + w[i][j]*0.05f, pos.z };
-					DrawCubeV(waterPos, {0.8f, w[i][j]*0.1f, 0.8f}, BLUE);
-				}
-				
-			}
-		}
-		
+		DrawTerrain();
 		// 绘制玩家
 		DrawCubeV(playerPos, {0.8f, 1.6f, 0.8f}, RED);
 		DrawCubeWiresV(playerPos, {0.8f, 1.6f, 0.8f}, DARKGRAY);
