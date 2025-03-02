@@ -239,6 +239,7 @@ void flow(){
 int main() {
 	build_PerlinNoise();
 	//LoadHeightmapFromPNG("global_heightmap_8192.png");
+	SetConfigFlags(FLAG_MSAA_4X_HINT);
 	InitWindow(1920, 1080, "3D Terrain");
 	SetTargetFPS(60);
 	DisableCursor();
