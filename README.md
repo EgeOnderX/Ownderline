@@ -3,9 +3,11 @@
 尽量本地编译，```.exe```不保证最新 or 可运行。
 ## EasyWorld3.0 （不可运行！！！）
 ### Tips
+按ESC退出。
 raylib仿MINECRAFT小游戏，需要[raylib](https://www.raylib.com/)库，或使用[小熊猫C++](http://royqh.net/redpandacpp/download/)。
 ## EasyWorld2.0 （BUG！！！）
 ### Tips
+按ESC退出。
 raylib小游戏，需要[raylib](https://www.raylib.com/)库，或使用[小熊猫C++](http://royqh.net/redpandacpp/download/)。
 ## EasyWorld1.0 （停止更新）
 ### Tips
