@@ -34,7 +34,7 @@ const float MAX_PITCH = 89.0f;     // 最大俯仰角度
 
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
-	double k=60/10;
+	double k=60;
 	double health = 100;
 	double hunger = 100;
 	double thirst = 100;
