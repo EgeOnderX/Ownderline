@@ -65,7 +65,7 @@ struct SurvivalStats {
 	}
 }g_stats;
 
-
+void flow();
 /*废弃*/bool LoadHeightmapFromPNG(const char* filename);
 void build_PerlinNoise();/*生成地形*/
 void Playerdo();/*玩家操作*/
@@ -147,7 +147,7 @@ int main() {
 		}
 		
 		Playerdo();
-		//flow();
+		flow();
 		BeginDrawing();
 		ClearBackground(SKYBLUE);
 		BeginMode3D(camera);
@@ -160,7 +160,7 @@ int main() {
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
 				
-				if (w[i][j] > 0.0f) {
+				if (w[i][j] > 0.1f) {
 					Vector3 waterPos = { pos.x, w[i][j]*0.5f+a[i][j], pos.z };
 					DrawCubeV(waterPos, {1.0f, w[i][j], 1.0f }, BLUE);
 				}
@@ -208,6 +208,9 @@ void DrawHUD(){
 void Playerdo() {
 	if (IsKeyPressed(KEY_F1)) {
 		HideUI = !HideUI;
+	}
+	if (IsKeyPressed(KEY_F2)) {
+		TakeScreenshot("ltl.png"); 
 	}
 	if (IsKeyPressed(KEY_F5)) {
 		isFirstPerson = !isFirstPerson;
@@ -261,10 +264,10 @@ void Playerdo() {
 	
 	
 	// 交互操作
-	if (IsKeyPressed(KEY_SPACE)) w[(int)playerX][(int)playerZ] += 10.0;
+	if (IsKeyPressed(KEY_SPACE)) w[(int)playerX][(int)playerZ] += 500.0;
 	if (IsKeyPressed(KEY_T)) {
-		for (int dx = -1; dx <= 1; ++dx)
-			for (int dy = -1; dy <= 1; ++dy)
+		for (int dx = -2; dx <= 2; ++dx)
+			for (int dy = -2; dy <= 2; ++dy)
 				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
 	}
 }
@@ -381,8 +384,8 @@ void build_PerlinNoise() {
 void flow(){
 	memset(neww,0,sizeof(neww));
 	
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
+	for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+		for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 			if(w[i][j] < 0.1) continue;
 			
 			// 边界消减（减缓消减速度）
@@ -401,7 +404,7 @@ void flow(){
 					// 比较实际地形高度a，而不是l
 					if(a[i][j] + w[i][j] > a[ni][nj] + w[ni][nj]){ // 考虑水位高度
 						float heightDiff = (a[i][j] + w[i][j]) - (a[ni][nj] + w[ni][nj]);
-						float flowAmount = min(w[i][j], heightDiff * 0.2); // 增加流动系数
+						float flowAmount = min(w[i][j], heightDiff * 0.1); // 增加流动系数
 						flowAmount = max(flowAmount, 0.0);
 						neww[i][j] -= flowAmount;
 						neww[ni][nj] += flowAmount;
@@ -412,8 +415,8 @@ void flow(){
 	}
 	
 	// 应用变化
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
+	for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+		for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 			w[i][j] += neww[i][j];
 			w[i][j] = max(w[i][j], 0.0);
 		}
