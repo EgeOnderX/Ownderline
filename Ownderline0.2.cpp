@@ -12,7 +12,7 @@ float l[1145][1145];
 float neww[8245][8245];
 float scale = 0.005;
 const int octaves = 3;
-float BeAbleSee=128;
+float BeAbleSee=64;
 
 
 // 玩家参数
@@ -53,7 +53,7 @@ struct SurvivalStats {
 			timer = 0;
 			
 			// 基础消耗
-			hunger = max(hunger-0.01,0);
+			hunger = max(hunger-0.001,0);
 			
 			// 体温调节
 			//bodyTemp += (ambientTemp - bodyTemp)/k  ;
@@ -96,6 +96,12 @@ int main() {
 		playerRotation -= mouseDelta.x * mouseSensitivity;  // 水平旋转
 		cameraPitch += mouseDelta.y * mouseSensitivity * 0.5f; // 垂直视角（降低灵敏度）
 		cameraPitch = Clamp(cameraPitch, -MAX_PITCH, MAX_PITCH); // 限制角度
+		
+		// 新增鼠标滚轮控制
+		float wheel = GetMouseWheelMove();
+		if (!isFirstPerson) {
+			cameraDistance = cameraDistance - wheel * 2.0f;
+		}
 		// 更新摄像机
 		Vector3 playerPos = {
 			playerX,
@@ -148,11 +154,12 @@ int main() {
 				Vector3 pos = { (float)i, a[i][j] * 0.5f, (float)j };
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
+				/*
 				if (w[i][j] > 0.0f) {
 					Vector3 waterPos = { pos.x, pos.y + w[i][j]*0.5f, pos.z };
 					DrawCubeV(waterPos, {0.8f, w[i][j], 0.8f}, BLUE);
 				}
-				
+				*/
 			}
 		}
 		if(!isFirstPerson){
@@ -178,7 +185,7 @@ void DrawHUD(){
 	DrawText("Health:", 0+10, GetScreenHeight()-20, 20, WHITE);// 生命值
 	
 	
-	DrawRectangle(GetScreenWidth()/2, GetScreenHeight()-20, g_stats.health / 100*GetScreenWidth()/2, 20, ORANGE);
+	DrawRectangle(GetScreenWidth()/2, GetScreenHeight()-20, g_stats.hunger / 100*GetScreenWidth()/2, 20, ORANGE);
 	DrawText("Hunger:",GetScreenWidth()/2+10, GetScreenHeight()-20, 20, WHITE);// 饱食度
 	/*
 	char tempStr[20];// 体温
@@ -220,7 +227,7 @@ void Playerdo() {
 		isSprinting = false;
 	}
 	Vector2 inputDir = {0};
-	float xh=0.1;
+	float xh=0.002;
 	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
 	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
 	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
