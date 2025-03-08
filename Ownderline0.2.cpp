@@ -12,7 +12,7 @@ float l[1145][1145];
 float neww[8245][8245];
 float scale = 0.005;
 const int octaves = 3;
-float BeAbleSee=64;
+float BeAbleSee=128;
 
 
 // 玩家参数
@@ -76,6 +76,7 @@ void DrawHUD();
 int main() {
 	build_PerlinNoise();
 	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
+	
 	InitWindow(640, 480, "Ownderline");
 	SetTargetFPS(60);
 	DisableCursor();
@@ -85,6 +86,9 @@ int main() {
 	camera.fovy = 60.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
 	camera.up = {0, 1, 0};
+	
+	Mesh terrainMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+	Model terrainModel = LoadModelFromMesh(terrainMesh);
 	
 	while (!WindowShouldClose()) {
 	
@@ -151,6 +155,7 @@ int main() {
 		// 绘制地形
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
+				
 				Vector3 pos = { (float)i, a[i][j] * 0.5f, (float)j };
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
