@@ -35,7 +35,7 @@ const float MAX_PITCH = 89.0f;     // 最大俯仰角度
 bool isFirstPerson = 1;
 
 bool HideUI=0;
-
+float Time=5;
 
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
@@ -77,11 +77,11 @@ int main() {
 	build_PerlinNoise();
 	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
 	
-	InitWindow(640, 480, "Ownderline");
+	InitWindow(1280, 720, "Ownderline");
 	SetTargetFPS(60);
 	DisableCursor();
 
-	g_stats.ambientTemp = a[(int)playerX][(int)playerZ] * 0.5f;// 初始化生存状态
+	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
 	Camera3D camera = { 0 };
 	camera.fovy = 60.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
@@ -90,8 +90,19 @@ int main() {
 	Mesh terrainMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 	Model terrainModel = LoadModelFromMesh(terrainMesh);
 	
-	while (!WindowShouldClose()) {
 	
+	while (!WindowShouldClose()) {
+		
+		Time+=0.02;
+		/*
+		for(int i = 1; i <= n; i++) 
+			for(int j = 1; j <= m; j++) 
+				w[i][j]=max(Time-a[i][j],0);
+		*/
+		/*
+		int i=600,j=600;
+		w[i][j]=max(Time-a[i][j],0);
+		*/
 		//g_stats.ambientTemp = a[(int)playerX][(int)playerZ];// 更新环境温度
 		g_stats.Update(GetFrameTime());
 		
@@ -109,7 +120,7 @@ int main() {
 		// 更新摄像机
 		Vector3 playerPos = {
 			playerX,
-			a[(int)playerX][(int)playerZ] ,
+			a[(int)round(playerX)][(int)round(playerZ)] ,
 			playerZ
 		};
 		if (isFirstPerson) {
@@ -161,7 +172,7 @@ int main() {
 				
 				
 				if (w[i][j] > 0.1f) {
-					Vector3 waterPos = { pos.x, w[i][j]*0.5f+a[i][j], pos.z };
+					Vector3 waterPos = { i, w[i][j]*0.5f+a[i][j], j };
 					DrawCubeV(waterPos, {1.0f, w[i][j], 1.0f }, BLUE);
 				}
 				
@@ -203,6 +214,7 @@ void DrawHUD(){
 	
 	DrawText(TextFormat("%.1f,%.1f,%.1f", playerX, a[(int)round(playerX)][(int)round(playerZ)],playerZ), 10, 10, 20, BLACK);// 调试信息
 	DrawFPS(10, 40);
+	
 }
 
 void Playerdo() {
@@ -210,12 +222,21 @@ void Playerdo() {
 		HideUI = !HideUI;
 	}
 	if (IsKeyPressed(KEY_F2)) {
-		TakeScreenshot("ltl.png"); 
+		time_t now = time(NULL);
+		struct tm *tm = localtime(&now);
+		char filename[256];
+		strftime(filename, sizeof(filename), "screenshots_%Y%m%d_%H%M%S.jpg", tm);
+		TakeScreenshot(filename); 
 	}
 	if (IsKeyPressed(KEY_F5)) {
 		isFirstPerson = !isFirstPerson;
 	}
-	
+	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 5.0;
+	if (IsKeyDown(KEY_T)) {
+		for (int dx = -5; dx <= 5; ++dx)
+			for (int dy = -5; dy <= 5; ++dy)
+				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
+	}
 	// 检测双击W逻辑
 	if (IsKeyPressed(KEY_W)) {
 		float currentTime = GetTime();
@@ -264,12 +285,7 @@ void Playerdo() {
 	
 	
 	// 交互操作
-	if (IsKeyPressed(KEY_SPACE)) w[(int)playerX][(int)playerZ] += 500.0;
-	if (IsKeyPressed(KEY_T)) {
-		for (int dx = -2; dx <= 2; ++dx)
-			for (int dy = -2; dy <= 2; ++dy)
-				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
-	}
+	
 }
 /*------------------*/
 void build_PerlinNoise() {
@@ -381,47 +397,7 @@ void build_PerlinNoise() {
 }
 /*|-------废物部分-------|*/
 /*| ！！！屎山部分！！！ |*/
-void flow(){
-	memset(neww,0,sizeof(neww));
-	
-	for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
-		for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
-			if(w[i][j] < 0.1) continue;
-			
-			// 边界消减（减缓消减速度）
-			if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
-				neww[i][j] -= 0.1; // 改为每次减少0.1
-			}
-			
-			// 四方向流动（使用实际地形a数组）
-			int dx[] = {-1, 0, 1, 0};
-			int dy[] = {0, -1, 0, 1};
-			for(int k=0; k<4; k++){
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				
-				if(ni>=1 && ni<=n && nj>=1 && nj<=m){
-					// 比较实际地形高度a，而不是l
-					if(a[i][j] + w[i][j] > a[ni][nj] + w[ni][nj]){ // 考虑水位高度
-						float heightDiff = (a[i][j] + w[i][j]) - (a[ni][nj] + w[ni][nj]);
-						float flowAmount = min(w[i][j], heightDiff * 0.1); // 增加流动系数
-						flowAmount = max(flowAmount, 0.0);
-						neww[i][j] -= flowAmount;
-						neww[ni][nj] += flowAmount;
-					}
-				}
-			}
-		}
-	}
-	
-	// 应用变化
-	for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
-		for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
-			w[i][j] += neww[i][j];
-			w[i][j] = max(w[i][j], 0.0);
-		}
-	}
-}
+
 
 bool LoadHeightmapFromPNG(const char* filename) {
 	// 加载图像
@@ -455,3 +431,51 @@ bool LoadHeightmapFromPNG(const char* filename) {
 	UnloadImage(img);
 	return true;
 }
+
+void flow() {
+	memset(neww, 0, sizeof(neww));
+	int playerXInt = static_cast<int>(round(playerX));
+	int playerZInt = static_cast<int>(round(playerZ));
+	int flowRange = 64; // 缩小水流模拟范围
+	int startX = max(playerXInt - flowRange, 1);
+	int endX = min(playerXInt + flowRange, n);
+	int startZ = max(playerZInt - flowRange, 1);
+	int endZ = min(playerZInt + flowRange, m);
+	
+#pragma omp parallel for // 并行化循环
+	for (int i = startX; i <= endX; i++) {
+		for (int j = startZ; j <= endZ; j++) {
+			if (w[i][j] < 0.1) continue;
+			
+			// 边界处理
+			if ((i == 1 || i == n || j == 1 || j == m) && w[i][j] >= 1) {
+				neww[i][j] -= 0.1;
+			}
+			
+			int dx[] = {-1, 0, 1, 0};
+			int dy[] = {0, -1, 0, 1};
+			for (int k = 0; k < 4; k++) {
+				int ni = i + dx[k];
+				int nj = j + dy[k];
+				if (ni < 1 || ni > n || nj < 1 || nj > m) continue;
+				
+				float totalHeight = a[i][j] + w[i][j];
+				float neighborHeight = a[ni][nj] + w[ni][nj];
+				if (totalHeight > neighborHeight) {
+					float flowAmount = min(w[i][j], (totalHeight - neighborHeight) * 0.05f); // 调整流动系数
+					neww[i][j] -= flowAmount;
+#pragma omp atomic
+					neww[ni][nj] += flowAmount;
+				}
+			}
+		}
+	}
+	
+	for (int i = startX; i <= endX; i++) {
+		for (int j = startZ; j <= endZ; j++) {
+			w[i][j] += neww[i][j];
+			w[i][j] = max(w[i][j], 0.0f);
+		}
+	}
+}
+
