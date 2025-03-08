@@ -149,19 +149,20 @@ int main() {
 		BeginMode3D(camera);
 		
 		// 绘制地形
-		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; ++i) {
-			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; ++j) {
+		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 				Vector3 pos = { (float)i, a[i][j] * 0.5f, (float)j };
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
-				/*
+				
 				if (w[i][j] > 0.0f) {
-					Vector3 waterPos = { pos.x, pos.y + w[i][j]*0.5f, pos.z };
-					DrawCubeV(waterPos, {0.8f, w[i][j], 0.8f}, BLUE);
+					Vector3 waterPos = { pos.x, w[i][j]*0.5f+a[i][j], pos.z };
+					DrawCubeV(waterPos, {1.0f, w[i][j], 1.0f }, BLUE);
 				}
-				*/
+				
 			}
 		}
+		
 		if(!isFirstPerson){
 			// 绘制玩家
 			DrawCubeV(playerPos, {0.8f, 1.6f, 0.8f}, RED);
@@ -195,7 +196,7 @@ void DrawHUD(){
 	//其他
 	*/
 	
-	DrawText(TextFormat("%.1f,%.1f,%.1f", playerX, a[(int)playerX][(int)playerZ],playerZ), 10, 10, 20, BLACK);// 调试信息
+	DrawText(TextFormat("%.1f,%.1f,%.1f", playerX, a[(int)round(playerX)][(int)round(playerZ)],playerZ), 10, 10, 20, BLACK);// 调试信息
 	DrawFPS(10, 40);
 }
 
@@ -259,7 +260,7 @@ void Playerdo() {
 	if (IsKeyPressed(KEY_T)) {
 		for (int dx = -1; dx <= 1; ++dx)
 			for (int dy = -1; dy <= 1; ++dy)
-				w[(int)playerX+dx][(int)playerZ+dy] = 0;
+				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
 	}
 }
 /*------------------*/
