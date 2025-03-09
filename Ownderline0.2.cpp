@@ -14,6 +14,9 @@ float scale = 0.005;
 const int octaves = 3;
 float BeAbleSee=128;
 
+float flowRate = 1.0f;      // 水流速率
+float waterViscosity = 0.1f; // 水流粘滞系数
+float inertia[8245][8245][2];// 水流惯性矢量场
 
 // 玩家参数
 float playerX = n / 2.0f;
@@ -170,10 +173,27 @@ int main() {
 				Vector3 pos = { (float)i, a[i][j] * 0.5f, (float)j };
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
-				
-				if (w[i][j] > 0.1f) {
-					Vector3 waterPos = { i, w[i][j]*0.5f+a[i][j], j };
-					DrawCubeV(waterPos, {1.0f, w[i][j], 1.0f }, BLUE);
+				if (w[i][j] > 0.01f) {
+					Vector3 waterPos = { 
+						(float)i, 
+						a[i][j] + w[i][j] * 0.5f,  // 精确的水体位置
+						(float)j 
+					};
+					
+					// 动态颜色：水深影响颜色和透明度
+					const float depth = w[i][j];
+					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+					const Color waterColor = {
+						30,  // R
+						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
+						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
+						alpha  // A
+					};
+					
+					DrawCubeV(waterPos, 
+						Vector3{1.0f, w[i][j], 1.0f}, 
+						waterColor
+						);
 				}
 				
 			}
@@ -432,49 +452,91 @@ bool LoadHeightmapFromPNG(const char* filename) {
 	return true;
 }
 
+// 修改后的flow函数
 void flow() {
 	memset(neww, 0, sizeof(neww));
+	float deltaTime = GetFrameTime();
+	
+	// 获取玩家周围模拟范围
 	int playerXInt = static_cast<int>(round(playerX));
 	int playerZInt = static_cast<int>(round(playerZ));
-	int flowRange = 64; // 缩小水流模拟范围
+	int flowRange = 128;
 	int startX = max(playerXInt - flowRange, 1);
 	int endX = min(playerXInt + flowRange, n);
 	int startZ = max(playerZInt - flowRange, 1);
 	int endZ = min(playerZInt + flowRange, m);
 	
-#pragma omp parallel for // 并行化循环
+	// 8方向扩散（包括对角线）
+	int dx[] = {-1, 0, 1, 0, -1, -1, 1, 1};
+	int dy[] = {0, -1, 0, 1, -1, 1, -1, 1};
+	float dist[] = {1,1,1,1,1.4142f,1.4142f,1.4142f,1.4142f};
+	
+#pragma omp parallel for
 	for (int i = startX; i <= endX; i++) {
 		for (int j = startZ; j <= endZ; j++) {
-			if (w[i][j] < 0.1) continue;
+			if (w[i][j] < 0.01) continue;
 			
-			// 边界处理
-			if ((i == 1 || i == n || j == 1 || j == m) && w[i][j] >= 1) {
-				neww[i][j] -= 0.1;
-			}
+			// 计算总压力（地形高度+水高）
+			float totalPressure = a[i][j] + w[i][j];
+			float totalFlow = 0.0f;
 			
-			int dx[] = {-1, 0, 1, 0};
-			int dy[] = {0, -1, 0, 1};
-			for (int k = 0; k < 4; k++) {
+			// 计算各方向压力差
+			float pressureDiffs[8] = {0};
+			float totalDiff = 0.0f;
+			for (int k = 0; k < 8; k++) {
 				int ni = i + dx[k];
 				int nj = j + dy[k];
 				if (ni < 1 || ni > n || nj < 1 || nj > m) continue;
 				
-				float totalHeight = a[i][j] + w[i][j];
-				float neighborHeight = a[ni][nj] + w[ni][nj];
-				if (totalHeight > neighborHeight) {
-					float flowAmount = min(w[i][j], (totalHeight - neighborHeight) * 0.05f); // 调整流动系数
-					neww[i][j] -= flowAmount;
-#pragma omp atomic
-					neww[ni][nj] += flowAmount;
+				float neighborPressure = a[ni][nj] + w[ni][nj];
+				float diff = totalPressure - neighborPressure;
+				if (diff > 0) {
+					pressureDiffs[k] = diff / dist[k]; // 考虑距离加权
+					totalDiff += pressureDiffs[k];
 				}
+			}
+			
+			// 计算惯性分量
+			float ix = inertia[i][j][0];
+			float iy = inertia[i][j][1];
+			
+			// 分配流量
+			for (int k = 0; k < 8; k++) {
+				if (pressureDiffs[k] <= 0) continue;
+				
+				int ni = i + dx[k];
+				int nj = j + dy[k];
+				float flowRatio = pressureDiffs[k] / totalDiff;
+				
+				// 基础流量 + 惯性分量
+				float flowAmount = w[i][j] * flowRatio * flowRate * deltaTime;
+				flowAmount += (dx[k]*ix + dy[k]*iy) * 0.1f; // 惯性影响
+				
+				// 粘滞阻力
+				flowAmount *= (1.0f - waterViscosity * deltaTime);
+				
+				flowAmount = min(flowAmount, w[i][j]);
+				
+				neww[i][j] -= flowAmount;
+#pragma omp atomic
+				neww[ni][nj] += flowAmount;
+				
+				// 更新惯性矢量
+				inertia[ni][nj][0] += dx[k] * flowAmount * 0.1f;
+				inertia[ni][nj][1] += dy[k] * flowAmount * 0.1f;
 			}
 		}
 	}
 	
+	// 应用流动并衰减惯性
 	for (int i = startX; i <= endX; i++) {
 		for (int j = startZ; j <= endZ; j++) {
 			w[i][j] += neww[i][j];
 			w[i][j] = max(w[i][j], 0.0f);
+			
+			// 惯性衰减
+			inertia[i][j][0] *= 0.9f;
+			inertia[i][j][1] *= 0.9f;
 		}
 	}
 }
