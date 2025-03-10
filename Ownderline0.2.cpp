@@ -12,17 +12,17 @@ float l[1145][1145];
 float neww[8245][8245];
 float scale = 0.005;
 const int octaves = 3;
-float BeAbleSee=128;
+float BeAbleSee=48;
 
-float flowRate = 1.0f;      // 水流速率
-float waterViscosity = 0.1f; // 水流粘滞系数
+float flowRate = 0.8f;      // 水流速率
+float waterViscosity = 0.15f; // 水流粘滞系数
 float inertia[8245][8245][2];// 水流惯性矢量场
 
 // 玩家参数
-float playerX = n / 2.0f;
-float playerZ = m / 2.0f;
+float playerX = n/ 2.0f;
+float playerZ = m/ 2.0f;
 float playerRotation = 0.0f;      // 玩家水平旋转角度
-float moveSpeed = 5.4514f; 
+float moveSpeed; 
 
 float lastWPressedTime = 0.0;      // 上次按下W的时间
 int wPressCount = 0;                // W键连续按压计数
@@ -38,7 +38,10 @@ const float MAX_PITCH = 89.0f;     // 最大俯仰角度
 bool isFirstPerson = 1;
 
 bool HideUI=0;
-float Time=5;
+float Time=7;
+
+float hun=0;//0.02;
+float PlayerHeight=1.8f;
 
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
@@ -51,19 +54,19 @@ struct SurvivalStats {
 		static float timer = 0;
 		timer += deltaTime;
 		
-		// 每2秒更新一次状态
-		if(timer >= 0.0f) {
+		// 更新一次状态
+		if(timer >= 0.001f) {
 			timer = 0;
 			
 			// 基础消耗
-			hunger = max(hunger-0.001,0);
+			hunger = max(hunger-hun,0);
 			
 			// 体温调节
 			//bodyTemp += (ambientTemp - bodyTemp)/k  ;
 			
 			// 健康检测
-			if(hunger<=0) health = max(health - 0.06, 0);
-			if(bodyTemp > 39.0f || bodyTemp < 35.0f) health = max(health - 0.04, 0);
+			if(hunger<=0) health = max(health - 0.5, 0);
+			//if(bodyTemp > 39.0f || bodyTemp < 35.0f) health = max(health - 0.04, 0);
 		}
 	}
 }g_stats;
@@ -81,7 +84,7 @@ int main() {
 	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
 	
 	InitWindow(1280, 720, "Ownderline");
-	SetTargetFPS(60);
+	SetTargetFPS(120);
 	DisableCursor();
 
 	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
@@ -90,21 +93,18 @@ int main() {
 	camera.projection = CAMERA_PERSPECTIVE;
 	camera.up = {0, 1, 0};
 	
-	Mesh terrainMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
-	Model terrainModel = LoadModelFromMesh(terrainMesh);
-	
-	
 	while (!WindowShouldClose()) {
-		
+		moveSpeed=g_stats.hunger*0.06f+1;
+		moveSpeed=moveSpeed/1.8f*PlayerHeight;
 		Time+=0.02;
 		/*
 		for(int i = 1; i <= n; i++) 
 			for(int j = 1; j <= m; j++) 
-				w[i][j]=max(Time-a[i][j],0);
+				if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
 		*/
 		/*
 		int i=600,j=600;
-		w[i][j]=max(Time-a[i][j],0);
+		w[i][j]=max(Time*100-a[i][j],0);
 		*/
 		//g_stats.ambientTemp = a[(int)playerX][(int)playerZ];// 更新环境温度
 		g_stats.Update(GetFrameTime());
@@ -120,6 +120,8 @@ int main() {
 		if (!isFirstPerson) {
 			cameraDistance = cameraDistance - wheel * 2.0f;
 		}
+		if ((IsKeyDown(KEY_LEFT_CONTROL)||IsKeyDown(KEY_RIGHT_CONTROL))&&(IsKeyDown(KEY_KP_0)||IsKeyDown(KEY_ZERO))&&!isFirstPerson) cameraDistance=10.0f;
+		
 		// 更新摄像机
 		Vector3 playerPos = {
 			playerX,
@@ -130,7 +132,7 @@ int main() {
 			// 第一人称摄像机设置
 			camera.position = {
 				playerPos.x,
-				playerPos.y + 1.8f, // 眼睛高度（假设玩家身高1.6米）
+				playerPos.y + PlayerHeight/1.8f*1.6f, // 眼睛高度（假设玩家身高1.6米）
 				playerPos.z
 			};
 			
@@ -161,12 +163,18 @@ int main() {
 		}
 		
 		Playerdo();
-		flow();
+		static float simAccumulator = 0.0f;
+		simAccumulator += GetFrameTime();
+		if (simAccumulator >= 1.0f/24.0f) { // 30Hz物理更新
+			flow();
+			simAccumulator -= 1.0f/24.0f;
+		}
 		BeginDrawing();
 		ClearBackground(SKYBLUE);
 		BeginMode3D(camera);
-		
+		BeginScissorMode(0,0,GetScreenWidth(),GetScreenHeight());
 		// 绘制地形
+		BeginBlendMode(BLEND_ALPHA);
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 				
@@ -201,8 +209,8 @@ int main() {
 		
 		if(!isFirstPerson){
 			// 绘制玩家
-			DrawCubeV(playerPos, {0.8f, 1.6f, 0.8f}, RED);
-			DrawCubeWiresV(playerPos, {0.8f, 1.6f, 0.8f}, DARKGRAY);
+			DrawCubeV(playerPos, {0.8f, PlayerHeight, 0.8f}, RED);
+			DrawCubeWiresV(playerPos, {0.8f, PlayerHeight, 0.8f}, DARKGRAY);
 		}
 		
 		
@@ -245,13 +253,17 @@ void Playerdo() {
 		time_t now = time(NULL);
 		struct tm *tm = localtime(&now);
 		char filename[256];
-		strftime(filename, sizeof(filename), "screenshots_%Y%m%d_%H%M%S.jpg", tm);
+		strftime(filename, sizeof(filename), "screenshots_%Y%m%d_%H%M%S.png", tm);
 		TakeScreenshot(filename); 
 	}
 	if (IsKeyPressed(KEY_F5)) {
 		isFirstPerson = !isFirstPerson;
 	}
 	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 5.0;
+	if (IsKeyDown(KEY_LEFT_SHIFT)){
+		PlayerHeight=0.9f;
+	}
+	else PlayerHeight=1.8f;
 	if (IsKeyDown(KEY_T)) {
 		for (int dx = -5; dx <= 5; ++dx)
 			for (int dy = -5; dy <= 5; ++dy)
@@ -277,16 +289,15 @@ void Playerdo() {
 		isSprinting = false;
 	}
 	Vector2 inputDir = {0};
-	float xh=0.002;
-	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_D)) {inputDir.x = -1;g_stats.hunger = max(g_stats.hunger -xh, 0);}
+	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_D)) {inputDir.x = -1;g_stats.hunger = max(g_stats.hunger -hun*2, 0);}
 	float currentSpeed = moveSpeed;
 	if (isSprinting && inputDir.y == 1) { // 只有向前时加速
 		currentSpeed *= 2.0f; // 疾跑速度翻倍
 		// 这里可以添加体力消耗逻辑
-		g_stats.hunger = max(g_stats.hunger - 2.5*xh, 0);
+		g_stats.hunger = max(g_stats.hunger - 2.5*hun, 0);
 	}
 	
 	// 修复方向计算
@@ -412,6 +423,7 @@ void build_PerlinNoise() {
 	for(int i = 1; i <= n; i++) {
 		for(int j = 1; j <= m; j++) {
 			a[i][j] = Clamp(a[i][j], 0.0f, 55.0f);
+			w[i][j]=max(15-a[i][j],0);
 		}
 	}
 }
@@ -460,7 +472,7 @@ void flow() {
 	// 获取玩家周围模拟范围
 	int playerXInt = static_cast<int>(round(playerX));
 	int playerZInt = static_cast<int>(round(playerZ));
-	int flowRange = 128;
+	int flowRange = 32;
 	int startX = max(playerXInt - flowRange, 1);
 	int endX = min(playerXInt + flowRange, n);
 	int startZ = max(playerZInt - flowRange, 1);
