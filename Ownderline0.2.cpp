@@ -40,7 +40,7 @@ bool isFirstPerson = 1;
 bool HideUI=0;
 float Time=7;
 
-float hun=0;//0.02;
+float hun=0.02;
 float PlayerHeight=1.8f;
 
 // 在全局变量区添加生存状态结构体
