@@ -1,22 +1,23 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <bits/stdc++.h>
-#define min(a,b) (a)<(b)?(a):(b)
-#define max(a,b) (a)>(b)?(a):(b)
+#pragma GCC optimize(3)
+#define min(_a,_b) (_a)<(_b)?(_a):(_b)
+#define max(_a,_b) (_a)>(_b)?(_a):(_b)
 using namespace std;
 // 地形参数
-const int n = 1192, m = 1192;
-float a[8245][8245];
-float w[8245][8245];
-float l[1145][1145];
-float neww[8245][8245];
+const int n = 512, m = 512;
+float a[514][514];
+float w[514][514];
+float l[514][514];
+float neww[514][514];
 float scale = 0.005;
 const int octaves = 3;
 float BeAbleSee=48;
 
 float flowRate = 0.8f;      // 水流速率
 float waterViscosity = 0.15f; // 水流粘滞系数
-float inertia[8245][8245][2];// 水流惯性矢量场
+float inertia[514][514][2];// 水流惯性矢量场
 
 // 玩家参数
 float playerX = n/ 2.0f;
@@ -40,9 +41,50 @@ bool isFirstPerson = 1;
 bool HideUI=0;
 float Time=7;
 
-float hun=0.02;
+float hun=0.005;
 float PlayerHeight=1.8f;
 
+bool isDoubleClickHeld = false;
+bool shiftPressed = false;
+
+struct DoubleClickDetector {
+	unordered_map<int, float> lastPressTime;  // 按键最后按压时间
+	unordered_map<int, int> pressCount;       // 连续按压计数
+	
+	bool Check(int key, float threshold = 0.3f) {
+		if (IsKeyPressed(key)) {
+			const float currentTime = GetTime();
+			
+			// 初始化新按键记录
+			if (!lastPressTime.count(key)) {
+				lastPressTime[key] = 0.0f;
+				pressCount[key] = 0;
+			}
+			
+			// 计算时间差并更新状态
+			if (currentTime - lastPressTime[key] < threshold) {
+				pressCount[key]++;
+			} else {
+				pressCount[key] = 1;  // 超时重新计数
+			}
+			
+			lastPressTime[key] = currentTime;
+			
+			// 当达到双击时重置并返回true
+			if (pressCount[key] >= 2) {
+				pressCount[key] = 0;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	// 可选：外部手动重置状态
+	void Reset(int key) {
+		lastPressTime[key] = 0.0f;
+		pressCount[key] = 0;
+	}
+}g_doubleClick;
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
 	float health = 100;
@@ -55,7 +97,7 @@ struct SurvivalStats {
 		timer += deltaTime;
 		
 		// 更新一次状态
-		if(timer >= 0.001f) {
+		if(timer >= 0.01f) {
 			timer = 0;
 			
 			// 基础消耗
@@ -83,10 +125,10 @@ int main() {
 	build_PerlinNoise();
 	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
 	
-	InitWindow(1280, 720, "Ownderline");
+	InitWindow(640, 480, "Ownderline");
 	SetTargetFPS(120);
 	DisableCursor();
-
+		
 	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
 	Camera3D camera = { 0 };
 	camera.fovy = 60.0f;
@@ -259,35 +301,39 @@ void Playerdo() {
 	if (IsKeyPressed(KEY_F5)) {
 		isFirstPerson = !isFirstPerson;
 	}
-	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 5.0;
-	if (IsKeyDown(KEY_LEFT_SHIFT)){
-		PlayerHeight=0.9f;
+	if (g_doubleClick.Check(KEY_LEFT_SHIFT)) {
+		isDoubleClickHeld = true;
 	}
-	else PlayerHeight=1.8f;
+	
+	// 按下状态处理
+	if (IsKeyDown(KEY_LEFT_SHIFT)) {
+		if (isDoubleClickHeld) {
+			PlayerHeight = 0.4f;  // 双击后按住
+		} else {
+			PlayerHeight = 0.9f;   // 普通按住
+		}
+		shiftPressed = true;
+	} 
+	// 释放状态处理
+	else if (IsKeyReleased(KEY_LEFT_SHIFT)) {
+		PlayerHeight = 1.8f;
+		isDoubleClickHeld = false;
+		shiftPressed = false;
+	}
+	
+	// 防止在未双击时保持状态
+	if (!shiftPressed) {
+		isDoubleClickHeld = false;
+	}
+	if (IsKeyReleased(KEY_LEFT_SHIFT)) PlayerHeight=1.8f;
 	if (IsKeyDown(KEY_T)) {
 		for (int dx = -5; dx <= 5; ++dx)
 			for (int dy = -5; dy <= 5; ++dy)
 				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
 	}
-	// 检测双击W逻辑
-	if (IsKeyPressed(KEY_W)) {
-		float currentTime = GetTime();
-		if (currentTime - lastWPressedTime < floatPressThreshold) {
-			wPressCount++;
-			if (wPressCount >= 2) {
-				isSprinting = true;
-				wPressCount = 0; // 触发后重置计数
-			}
-		} else {
-			wPressCount = 1; // 超过时间间隔重新计数
-		}
-		lastWPressedTime = currentTime;
-	}
 	
-	// 松开W时重置疾跑状态
-	if (IsKeyReleased(KEY_W)) {
-		isSprinting = false;
-	}
+	if (g_doubleClick.Check(KEY_W))isSprinting = true;// 检测双击W逻辑
+	if (IsKeyReleased(KEY_W)) isSprinting = false;// 松开W时重置疾跑状态
 	Vector2 inputDir = {0};
 	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
 	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
@@ -463,93 +509,56 @@ bool LoadHeightmapFromPNG(const char* filename) {
 	UnloadImage(img);
 	return true;
 }
-
-// 修改后的flow函数
 void flow() {
-	memset(neww, 0, sizeof(neww));
-	float deltaTime = GetFrameTime();
+	static const int dx[] = {-1, 0, 1, 0}; // 静态常量方向数组
+	static const int dy[] = {0, -1, 0, 1};
 	
-	// 获取玩家周围模拟范围
-	int playerXInt = static_cast<int>(round(playerX));
-	int playerZInt = static_cast<int>(round(playerZ));
-	int flowRange = 32;
-	int startX = max(playerXInt - flowRange, 1);
-	int endX = min(playerXInt + flowRange, n);
-	int startZ = max(playerZInt - flowRange, 1);
-	int endZ = min(playerZInt + flowRange, m);
+	// 计算有效遍历范围
+	const int start_i = max(1, playerX - BeAbleSee);
+	const int end_i = min(n, playerX + BeAbleSee);
+	const int start_j = max(1, playerZ - BeAbleSee);
+	const int end_j = min(m, playerZ + BeAbleSee);
 	
-	// 8方向扩散（包括对角线）
-	int dx[] = {-1, 0, 1, 0, -1, -1, 1, 1};
-	int dy[] = {0, -1, 0, 1, -1, 1, -1, 1};
-	float dist[] = {1,1,1,1,1.4142f,1.4142f,1.4142f,1.4142f};
+	memset(neww, 0, sizeof(neww)); // 清空水流变化数组
 	
-#pragma omp parallel for
-	for (int i = startX; i <= endX; i++) {
-		for (int j = startZ; j <= endZ; j++) {
-			if (w[i][j] < 0.01) continue;
+	// 第一遍遍历：计算水流变化
+	for(int i = start_i; i <= end_i; ++i) {
+		for(int j = start_j; j <= end_j; ++j) {
+			const float w_ij = w[i][j];
+			if (w_ij < 0.001f) continue; // 忽略无水单元格
 			
-			// 计算总压力（地形高度+水高）
-			float totalPressure = a[i][j] + w[i][j];
-			float totalFlow = 0.0f;
-			
-			// 计算各方向压力差
-			float pressureDiffs[8] = {0};
-			float totalDiff = 0.0f;
-			for (int k = 0; k < 8; k++) {
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				if (ni < 1 || ni > n || nj < 1 || nj > m) continue;
-				
-				float neighborPressure = a[ni][nj] + w[ni][nj];
-				float diff = totalPressure - neighborPressure;
-				if (diff > 0) {
-					pressureDiffs[k] = diff / dist[k]; // 考虑距离加权
-					totalDiff += pressureDiffs[k];
-				}
+			// 边界消减（每次减少0.1，不依赖水位）
+			if (i == 1 || i == n || j == 1 || j == m) {
+				neww[i][j] -= 0.1f;
 			}
 			
-			// 计算惯性分量
-			float ix = inertia[i][j][0];
-			float iy = inertia[i][j][1];
+			// 缓存地形高度和水位总和
+			const float currentHeight = a[i][j] + w_ij;
 			
-			// 分配流量
-			for (int k = 0; k < 8; k++) {
-				if (pressureDiffs[k] <= 0) continue;
+			// 四方向流动处理
+			for(int k = 0; k < 4; ++k) {
+				const int ni = i + dx[k];
+				const int nj = j + dy[k];
 				
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				float flowRatio = pressureDiffs[k] / totalDiff;
-				
-				// 基础流量 + 惯性分量
-				float flowAmount = w[i][j] * flowRatio * flowRate * deltaTime;
-				flowAmount += (dx[k]*ix + dy[k]*iy) * 0.1f; // 惯性影响
-				
-				// 粘滞阻力
-				flowAmount *= (1.0f - waterViscosity * deltaTime);
-				
-				flowAmount = min(flowAmount, w[i][j]);
-				
-				neww[i][j] -= flowAmount;
-#pragma omp atomic
-				neww[ni][nj] += flowAmount;
-				
-				// 更新惯性矢量
-				inertia[ni][nj][0] += dx[k] * flowAmount * 0.1f;
-				inertia[ni][nj][1] += dy[k] * flowAmount * 0.1f;
+				if(ni >= 1 && ni <= n && nj >= 1 && nj <= m) {
+					const float neighborHeight = a[ni][nj] + w[ni][nj];
+					
+					if(currentHeight > neighborHeight) {
+						const float heightDiff = currentHeight - neighborHeight;
+						const float flowAmount = max(min(w_ij, heightDiff * 0.2f), 0.0f);
+						
+						neww[i][j] -= flowAmount;
+						neww[ni][nj] += flowAmount;
+					}
+				}
 			}
 		}
 	}
 	
-	// 应用流动并衰减惯性
-	for (int i = startX; i <= endX; i++) {
-		for (int j = startZ; j <= endZ; j++) {
-			w[i][j] += neww[i][j];
-			w[i][j] = max(w[i][j], 0.0f);
-			
-			// 惯性衰减
-			inertia[i][j][0] *= 0.9f;
-			inertia[i][j][1] *= 0.9f;
+	// 第二遍遍历：应用水流变化
+	for(int i = start_i; i <= end_i; ++i) {
+		for(int j = start_j; j <= end_j; ++j) {
+			w[i][j] = max(w[i][j] + neww[i][j], 0.0f);
 		}
 	}
 }
-
