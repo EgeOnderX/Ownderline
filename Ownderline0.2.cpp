@@ -41,7 +41,8 @@ bool isFirstPerson = 1;
 bool HideUI=0;
 float Time=7;
 
-float hun=0.005;
+//float hun=0.005;
+float hun=0;
 float PlayerHeight=1.8f;
 
 bool isDoubleClickHeld = false;
@@ -134,11 +135,12 @@ int main() {
 	camera.fovy = 60.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
 	camera.up = {0, 1, 0};
-	
+	w[256][256]=1;
 	while (!WindowShouldClose()) {
 		moveSpeed=g_stats.hunger*0.06f+1;
 		moveSpeed=moveSpeed/1.8f*PlayerHeight;
 		Time+=0.02;
+		w[256][256]+=max(10.0/w[256][256],0.01);
 		/*
 		for(int i = 1; i <= n; i++) 
 			for(int j = 1; j <= m; j++) 
@@ -326,12 +328,22 @@ void Playerdo() {
 		isDoubleClickHeld = false;
 	}
 	if (IsKeyReleased(KEY_LEFT_SHIFT)) PlayerHeight=1.8f;
+	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 10.0;
 	if (IsKeyDown(KEY_T)) {
 		for (int dx = -5; dx <= 5; ++dx)
 			for (int dy = -5; dy <= 5; ++dy)
 				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
 	}
-	
+	if (IsKeyDown(KEY_Q)) {
+		for (int dx = -2; dx <= 2; ++dx)
+			for (int dy = -2; dy <= 2; ++dy)
+				a[(int)round(playerX)+dx][(int)round(playerZ)+dy] -=0.25;
+	}
+	if (IsKeyDown(KEY_E)) {
+		for (int dx = -2; dx <= 2; ++dx)
+			for (int dy = -2; dy <= 2; ++dy)
+				a[(int)round(playerX)+dx][(int)round(playerZ)+dy] +=0.25;
+	}
 	if (g_doubleClick.Check(KEY_W))isSprinting = true;// 检测双击W逻辑
 	if (IsKeyReleased(KEY_W)) isSprinting = false;// 松开W时重置疾跑状态
 	Vector2 inputDir = {0};
@@ -526,7 +538,7 @@ void flow() {
 		for(int j = start_j; j <= end_j; ++j) {
 			const float w_ij = w[i][j];
 			if (w_ij < 0.001f) continue; // 忽略无水单元格
-			
+			if (w_ij < 0.001f)
 			// 边界消减（每次减少0.1，不依赖水位）
 			if (i == 1 || i == n || j == 1 || j == m) {
 				neww[i][j] -= 0.1f;
@@ -559,6 +571,7 @@ void flow() {
 	for(int i = start_i; i <= end_i; ++i) {
 		for(int j = start_j; j <= end_j; ++j) {
 			w[i][j] = max(w[i][j] + neww[i][j], 0.0f);
+			if(a[i][j]<=0) w[i][j]=max(w[i][j]+0.005*a[i][j],0);
 		}
 	}
 }
