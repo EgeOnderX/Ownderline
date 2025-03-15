@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <bits/stdc++.h>
+#include <rlgl.h>
 #pragma GCC optimize(3)
 #define min(_a,_b) (_a)<(_b)?(_a):(_b)
 #define max(_a,_b) (_a)>(_b)?(_a):(_b)
@@ -47,6 +48,11 @@ float PlayerHeight=1.8f;
 
 bool isDoubleClickHeld = false;
 bool shiftPressed = false;
+
+enum MyCameraMode { FIRST_PERSON, THIRD_PERSON, ISOMETRIC };
+MyCameraMode cameraMode = FIRST_PERSON;
+float isoDistance = 25.0f;     // 等轴视角距离
+float isoAngle = 45.0f;        // 等轴视角角度
 
 struct DoubleClickDetector {
 	unordered_map<int, float> lastPressTime;  // 按键最后按压时间
@@ -129,7 +135,7 @@ int main() {
 	InitWindow(640, 480, "Ownderline");
 	SetTargetFPS(120);
 	DisableCursor();
-		
+	
 	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
 	Camera3D camera = { 0 };
 	camera.fovy = 60.0f;
@@ -143,8 +149,8 @@ int main() {
 		w[256][256]+=max(10.0/w[256][256],0.01);
 		/*
 		for(int i = 1; i <= n; i++) 
-			for(int j = 1; j <= m; j++) 
-				if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
+		for(int j = 1; j <= m; j++) 
+		if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
 		*/
 		/*
 		int i=600,j=600;
@@ -159,53 +165,75 @@ int main() {
 		cameraPitch += mouseDelta.y * mouseSensitivity * 0.5f; // 垂直视角（降低灵敏度）
 		cameraPitch = Clamp(cameraPitch, -MAX_PITCH, MAX_PITCH); // 限制角度
 		
-		// 新增鼠标滚轮控制
+		// 鼠标滚轮控制
 		float wheel = GetMouseWheelMove();
-		if (!isFirstPerson) {
+		if (cameraMode == THIRD_PERSON) {
 			cameraDistance = cameraDistance - wheel * 2.0f;
 		}
+		
 		if ((IsKeyDown(KEY_LEFT_CONTROL)||IsKeyDown(KEY_RIGHT_CONTROL))&&(IsKeyDown(KEY_KP_0)||IsKeyDown(KEY_ZERO))&&!isFirstPerson) cameraDistance=10.0f;
 		
-		// 更新摄像机
 		Vector3 playerPos = {
 			playerX,
-			a[(int)round(playerX)][(int)round(playerZ)] ,
+			a[(int)round(playerX)][(int)round(playerZ)],
 			playerZ
 		};
-		if (isFirstPerson) {
-			// 第一人称摄像机设置
-			camera.position = {
-				playerPos.x,
-				playerPos.y + PlayerHeight/1.8f*1.6f, // 眼睛高度（假设玩家身高1.6米）
-				playerPos.z
-			};
-			
-			// 根据旋转角度计算视角方向
-			float yaw = DEG2RAD * playerRotation;
-			float pitch = -DEG2RAD * cameraPitch;
-			
-			Vector3 front = {
-				sinf(yaw) * cosf(pitch),
-				sinf(pitch),
-				cosf(yaw) * cosf(pitch)
-			};
-			front = Vector3Normalize(front);
-			
-			camera.target = {
-				camera.position.x + front.x,
-				camera.position.y + front.y,
-				camera.position.z + front.z
-			};
-		} else {
-			// 原第三人称摄像机逻辑
-			camera.position = {
-				playerPos.x - cameraDistance * cosf(DEG2RAD*cameraPitch) * sinf(DEG2RAD*playerRotation),
-				playerPos.y + cameraDistance * sinf(DEG2RAD*cameraPitch) + cameraHeight,
-				playerPos.z - cameraDistance * cosf(DEG2RAD*cameraPitch) * cosf(DEG2RAD*playerRotation)
-			};
-			camera.target = playerPos;
+		
+		switch (cameraMode) {
+			case FIRST_PERSON: {
+				camera.position = {
+					playerPos.x,
+					playerPos.y + PlayerHeight/1.8f*1.6f,
+					playerPos.z
+				};
+				
+				float yaw = DEG2RAD * playerRotation;
+				float pitch = -DEG2RAD * cameraPitch;
+				Vector3 front = {
+					sinf(yaw) * cosf(pitch),
+					sinf(pitch),
+					cosf(yaw) * cosf(pitch)
+				};
+				front = Vector3Normalize(front);
+				camera.target = {
+					camera.position.x + front.x,
+					camera.position.y + front.y,
+					camera.position.z + front.z
+				};
+				camera.projection = CAMERA_PERSPECTIVE;
+				break;
+			}
+			case THIRD_PERSON: {
+				camera.position = {
+					playerPos.x - cameraDistance * cosf(DEG2RAD*cameraPitch) * sinf(DEG2RAD*playerRotation),
+					playerPos.y + cameraDistance * sinf(DEG2RAD*cameraPitch) + cameraHeight,
+					playerPos.z - cameraDistance * cosf(DEG2RAD*cameraPitch) * cosf(DEG2RAD*playerRotation)
+				};
+				camera.target = playerPos;
+				camera.projection = CAMERA_PERSPECTIVE;
+				break;
+			}
+			case ISOMETRIC: {
+				const float baseHeight = 5.0f;
+				camera.position = {
+					playerPos.x + isoDistance * cosf(DEG2RAD*(isoAngle)),
+					playerPos.y + baseHeight + isoDistance,
+					playerPos.z + isoDistance * sinf(DEG2RAD*(isoAngle))
+				};
+				camera.target = playerPos;
+				camera.up = (Vector3){0, 1, 0};
+				camera.projection = CAMERA_ORTHOGRAPHIC;
+				camera.fovy = 50.0f;
+				break;
+			}
 		}
 		
+		if (cameraMode != ISOMETRIC) {
+			Vector2 mouseDelta = GetMouseDelta();
+			playerRotation -= mouseDelta.x * mouseSensitivity;
+			cameraPitch += mouseDelta.y * mouseSensitivity * 0.5f;
+			cameraPitch = Clamp(cameraPitch, -MAX_PITCH, MAX_PITCH);
+		}
 		Playerdo();
 		static float simAccumulator = 0.0f;
 		simAccumulator += GetFrameTime();
@@ -251,10 +279,24 @@ int main() {
 			}
 		}
 		
-		if(!isFirstPerson){
-			// 绘制玩家
-			DrawCubeV(playerPos, {0.8f, PlayerHeight, 0.8f}, RED);
-			DrawCubeWiresV(playerPos, {0.8f, PlayerHeight, 0.8f}, DARKGRAY);
+		if(cameraMode != FIRST_PERSON){
+			// 计算立方体中心位置（考虑玩家高度）
+			Vector3 cubeCenter = {
+				playerPos.x,
+				playerPos.y + PlayerHeight/2.0f, // 将立方体垂直居中
+				playerPos.z
+			};
+			
+			// 应用旋转和平移变换
+			rlPushMatrix();
+			rlTranslatef(cubeCenter.x, cubeCenter.y, cubeCenter.z);
+			rlRotatef(playerRotation, 0.0f, 1.0f, 0.0f); // 绕Y轴旋转（注意符号）
+			
+			// 绘制旋转后的立方体（原点位于中心）
+			DrawCube(Vector3Zero(), 0.8f, PlayerHeight, 0.8f, RED);
+			DrawCubeWiresV(Vector3Zero(), (Vector3){0.8f, PlayerHeight, 0.8f}, DARKGRAY);
+			
+			rlPopMatrix();
 		}
 		
 		
@@ -269,7 +311,7 @@ int main() {
 }
 
 void DrawHUD(){
-
+	
 	DrawRectangle(0,GetScreenHeight()-20, g_stats.health / 100*GetScreenWidth()/2, 20, RED);
 	DrawText("Health:", 0+10, GetScreenHeight()-20, 20, WHITE);// 生命值
 	
@@ -290,9 +332,7 @@ void DrawHUD(){
 }
 
 void Playerdo() {
-	if (IsKeyPressed(KEY_F1)) {
-		HideUI = !HideUI;
-	}
+	if (IsKeyPressed(KEY_F1)) HideUI = !HideUI;
 	if (IsKeyPressed(KEY_F2)) {
 		time_t now = time(NULL);
 		struct tm *tm = localtime(&now);
@@ -300,8 +340,22 @@ void Playerdo() {
 		strftime(filename, sizeof(filename), "screenshots_%Y%m%d_%H%M%S.png", tm);
 		TakeScreenshot(filename); 
 	}
+	
+	// F5切换视角模式
 	if (IsKeyPressed(KEY_F5)) {
-		isFirstPerson = !isFirstPerson;
+		cameraMode = static_cast<MyCameraMode>((static_cast<int>(cameraMode) + 1));
+		if(static_cast<int>(cameraMode) > ISOMETRIC) cameraMode = FIRST_PERSON;
+		
+		if(cameraMode == ISOMETRIC) {
+			isoDistance = 25.0f;
+			isoAngle = 45.0f;
+		}
+	}
+	
+	// 等轴视角滚轮控制
+	if (cameraMode == ISOMETRIC) {
+		float wheel = GetMouseWheelMove();
+		isoDistance = Clamp(isoDistance - wheel * 2.0f, 10.0f, 100.0f);
 	}
 	if (g_doubleClick.Check(KEY_LEFT_SHIFT)) {
 		isDoubleClickHeld = true;
@@ -539,10 +593,10 @@ void flow() {
 			const float w_ij = w[i][j];
 			if (w_ij < 0.001f) continue; // 忽略无水单元格
 			if (w_ij < 0.001f)
-			// 边界消减（每次减少0.1，不依赖水位）
-			if (i == 1 || i == n || j == 1 || j == m) {
-				neww[i][j] -= 0.1f;
-			}
+				// 边界消减（每次减少0.1，不依赖水位）
+				if (i == 1 || i == n || j == 1 || j == m) {
+					neww[i][j] -= 0.1f;
+				}
 			
 			// 缓存地形高度和水位总和
 			const float currentHeight = a[i][j] + w_ij;
