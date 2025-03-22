@@ -1,25 +1,33 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <bits/stdc++.h>
-#define min(a,b) (a)<(b)?(a):(b)
-#define max(a,b) (a)>(b)?(a):(b)
+#include <rlgl.h>
+#pragma GCC optimize(3)
+#define min(_a,_b) (_a)<(_b)?(_a):(_b)
+#define max(_a,_b) (_a)>(_b)?(_a):(_b)
 using namespace std;
 // 地形参数
-const int n = 1192, m = 1192;
-float a[8245][8245];
-float w[8245][8245];
-float l[1145][1145];
-float neww[8245][8245];
+const int n = 512, m = 512;
+float a[514][514];
+float w[514][514];
+float l[514][514];
+float neww[514][514];
 float scale = 0.005;
 const int octaves = 3;
-float BeAbleSee=128;
-float TimeSpeed=1.0f;//GameHour/ReallifeSecond
+float BeAbleSee=48;
+
+float flowRate = 0.8f;      // 水流速率
+float waterViscosity = 0.15f; // 水流粘滞系数
+float inertia[514][514][2];// 水流惯性矢量场
 
 // 玩家参数
-float playerX = n / 2.0f;
-float playerZ = m / 2.0f;
+float playerX = n/ 2.0f;
+float playerZ = m/ 2.0f;
 float playerRotation = 0.0f;      // 玩家水平旋转角度
-float moveSpeed = 5.4514f; 
+float moveSpeed; 
+
+float QXX = n/ 2.0f;
+float QXZ = m/ 2.0f;
 
 float lastWPressedTime = 0.0;      // 上次按下W的时间
 int wPressCount = 0;                // W键连续按压计数
@@ -35,8 +43,99 @@ const float MAX_PITCH = 89.0f;     // 最大俯仰角度
 bool isFirstPerson = 1;
 
 bool HideUI=0;
+float Time=7;
 
+//float hun=0.005;
+float hun=0;
+float PlayerHeight=1.8f;
 
+bool isDoubleClickHeld = false;
+bool shiftPressed = false;
+
+enum MyCameraMode { FIRST_PERSON, THIRD_PERSON, ISOMETRIC };
+MyCameraMode cameraMode = FIRST_PERSON;
+float isoDistance = 25.0f;     // 等轴视角距离
+float isoAngle = 45.0f;        // 等轴视角角度
+char QX[40][29]={
+	"        ##      ####",//0
+	"     ###########....###",
+	"    #.......##..#.....#",//2
+	"   #...#...##......###",
+	"   ##...####.#######",//4
+	"    ####............##",
+	"    #................#",//6
+	"   #.................#",
+	"  #..................#",//8
+	" ############........#",
+	" ###.................#",//10
+	"    ##...............##",
+	"    ##...............###",//12
+	"   # #...............# ##",
+	"  #  #................# #",//14
+	" #   #................#  #",
+	"##   #................#  ##",//16
+	" #   #................#  #",
+	"  #  #................# ##",//18
+	"  # #.................##",
+	"   ##.................#",//20
+	"   ##.................#",
+	"    #.................#",//22
+	"    #.................#",
+	"    #..................#",//24
+	"    #..................#",
+	"    #..................#",//26
+	"   #..................#",
+	"   #..................#",//28
+	"   ####################",
+	"   #                   #",//30
+	"   #                   #",
+	"   #                   #",//32
+	"   #                   #",
+	"   #                   #",//34
+	"   #                   #",
+	"   #                   #",//36
+	"   #                  #",
+	"   #                  #",//38
+	"  ##                  ###"
+};
+struct DoubleClickDetector {
+	unordered_map<int, float> lastPressTime;  // 按键最后按压时间
+	unordered_map<int, int> pressCount;       // 连续按压计数
+	
+	bool Check(int key, float threshold = 0.3f) {
+		if (IsKeyPressed(key)) {
+			const float currentTime = GetTime();
+			
+			// 初始化新按键记录
+			if (!lastPressTime.count(key)) {
+				lastPressTime[key] = 0.0f;
+				pressCount[key] = 0;
+			}
+			
+			// 计算时间差并更新状态
+			if (currentTime - lastPressTime[key] < threshold) {
+				pressCount[key]++;
+			} else {
+				pressCount[key] = 1;  // 超时重新计数
+			}
+			
+			lastPressTime[key] = currentTime;
+			
+			// 当达到双击时重置并返回true
+			if (pressCount[key] >= 2) {
+				pressCount[key] = 0;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	// 可选：外部手动重置状态
+	void Reset(int key) {
+		lastPressTime[key] = 0.0f;
+		pressCount[key] = 0;
+	}
+}g_doubleClick;
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
 	float health = 100;
@@ -48,34 +147,24 @@ struct SurvivalStats {
 		static float timer = 0;
 		timer += deltaTime;
 		
-		// 每n秒更新一次状态
-		if(timer >= 0.1f) {
+		// 更新一次状态
+		if(timer >= 0.01f) {
 			timer = 0;
 			
 			// 基础消耗
-			hunger = max(hunger-0.001,0);
+			hunger = max(hunger-hun,0);
 			
 			// 体温调节
 			//bodyTemp += (ambientTemp - bodyTemp)/k  ;
 			
 			// 健康检测
-			if(hunger<=0) health = max(health - 0.06, 0);
-			if(bodyTemp > 39.0f || bodyTemp < 35.0f) health = max(health - 0.04, 0);
+			if(hunger<=0) health = max(health - 0.5, 0);
+			//if(bodyTemp > 39.0f || bodyTemp < 35.0f) health = max(health - 0.04, 0);
 		}
 	}
 }g_stats;
-Mesh terrainMesh = {0};
-Mesh waterMesh = {0};
-std::vector<Vector3> terrainVertices;
-std::vector<Color> terrainColors;
-std::vector<Vector3> waterVertices;
-std::vector<Color> waterColors;
 
-// 在初始化地形后初始化网格
-void InitDynamicMesh(Mesh &mesh);
-
-// 新增函数：生成立方体顶点数据
-void AddCubeVertices(Vector3 center, Vector3 size, Color color, std::vector<Vector3> &vertices, std::vector<Color> &colors);
+void flow();
 /*废弃*/bool LoadHeightmapFromPNG(const char* filename);
 void build_PerlinNoise();/*生成地形*/
 void Playerdo();/*玩家操作*/
@@ -85,24 +174,37 @@ void DrawHUD();
 /*+---------------------------------------------+*/
 int main() {
 	build_PerlinNoise();
-	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
+	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI );
 	
 	InitWindow(640, 480, "Ownderline");
-	SetTargetFPS(60);
+	SetTargetFPS(120);
 	DisableCursor();
-
+	
 	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
 	Camera3D camera = { 0 };
 	camera.fovy = 60.0f;
 	camera.projection = CAMERA_PERSPECTIVE;
 	camera.up = {0, 1, 0};
-	
-	//Mesh terrainMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
-	//Model terrainModel = LoadModelFromMesh(terrainMesh);
-	InitDynamicMesh(terrainMesh);
-	InitDynamicMesh(waterMesh);
+	w[256][256]=1;
+	for (int i = 0+QXX-20; i < 40+QXX+20; i++) {
+		for (int j = 0+QXZ-20; j < 27+QXZ+20; j++) {
+			a[i][j]=1;
+		}
+	}
 	while (!WindowShouldClose()) {
-	
+		moveSpeed=g_stats.hunger*0.06f+1;
+		moveSpeed=moveSpeed/1.8f*PlayerHeight;
+		Time+=0.02;
+		//w[256][256]+=max(10.0/w[256][256],0.01);
+		/*
+		for(int i = 1; i <= n; i++) 
+		for(int j = 1; j <= m; j++) 
+		if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
+		*/
+		/*
+		int i=600,j=600;
+		w[i][j]=max(Time*100-a[i][j],0);
+		*/
 		//g_stats.ambientTemp = a[(int)playerX][(int)playerZ];// 更新环境温度
 		g_stats.Update(GetFrameTime());
 		
@@ -112,113 +214,161 @@ int main() {
 		cameraPitch += mouseDelta.y * mouseSensitivity * 0.5f; // 垂直视角（降低灵敏度）
 		cameraPitch = Clamp(cameraPitch, -MAX_PITCH, MAX_PITCH); // 限制角度
 		
-		// 新增鼠标滚轮控制
+		// 鼠标滚轮控制
 		float wheel = GetMouseWheelMove();
-		if (!isFirstPerson) {
+		if (cameraMode == THIRD_PERSON) {
 			cameraDistance = cameraDistance - wheel * 2.0f;
 		}
-		// 更新摄像机
+		
+		if ((IsKeyDown(KEY_LEFT_CONTROL)||IsKeyDown(KEY_RIGHT_CONTROL))&&(IsKeyDown(KEY_KP_0)||IsKeyDown(KEY_ZERO))&&!isFirstPerson) cameraDistance=10.0f;
+		
 		Vector3 playerPos = {
 			playerX,
-			a[(int)round(playerX)][(int)round(playerZ)] ,
+			a[(int)round(playerX)][(int)round(playerZ)],
 			playerZ
 		};
-		if (isFirstPerson) {
-			// 第一人称摄像机设置
-			camera.position = {
-				playerPos.x,
-				playerPos.y + 1.8f, // 眼睛高度（假设玩家身高1.6米）
-				playerPos.z
-			};
-			
-			// 根据旋转角度计算视角方向
-			float yaw = DEG2RAD * playerRotation;
-			float pitch = -DEG2RAD * cameraPitch;
-			
-			Vector3 front = {
-				sinf(yaw) * cosf(pitch),
-				sinf(pitch),
-				cosf(yaw) * cosf(pitch)
-			};
-			front = Vector3Normalize(front);
-			
-			camera.target = {
-				camera.position.x + front.x,
-				camera.position.y + front.y,
-				camera.position.z + front.z
-			};
-		} else {
-			// 原第三人称摄像机逻辑
-			camera.position = {
-				playerPos.x - cameraDistance * cosf(DEG2RAD*cameraPitch) * sinf(DEG2RAD*playerRotation),
-				playerPos.y + cameraDistance * sinf(DEG2RAD*cameraPitch) + cameraHeight,
-				playerPos.z - cameraDistance * cosf(DEG2RAD*cameraPitch) * cosf(DEG2RAD*playerRotation)
-			};
-			camera.target = playerPos;
+		
+		switch (cameraMode) {
+			case FIRST_PERSON: {
+				camera.position = {
+					playerPos.x,
+					playerPos.y + PlayerHeight/1.8f*1.6f,
+					playerPos.z
+				};
+				
+				float yaw = DEG2RAD * playerRotation;
+				float pitch = -DEG2RAD * cameraPitch;
+				Vector3 front = {
+					sinf(yaw) * cosf(pitch),
+					sinf(pitch),
+					cosf(yaw) * cosf(pitch)
+				};
+				front = Vector3Normalize(front);
+				camera.target = {
+					camera.position.x + front.x,
+					camera.position.y + front.y,
+					camera.position.z + front.z
+				};
+				camera.projection = CAMERA_PERSPECTIVE;
+				break;
+			}
+			case THIRD_PERSON: {
+				camera.position = {
+					playerPos.x - cameraDistance * cosf(DEG2RAD*cameraPitch) * sinf(DEG2RAD*playerRotation),
+					playerPos.y + cameraDistance * sinf(DEG2RAD*cameraPitch) + cameraHeight,
+					playerPos.z - cameraDistance * cosf(DEG2RAD*cameraPitch) * cosf(DEG2RAD*playerRotation)
+				};
+				camera.target = playerPos;
+				camera.projection = CAMERA_PERSPECTIVE;
+				break;
+			}
+			case ISOMETRIC: {
+				const float baseHeight = 5.0f;
+				camera.position = {
+					playerPos.x + isoDistance * cosf(DEG2RAD*(isoAngle)),
+					playerPos.y + baseHeight + isoDistance,
+					playerPos.z + isoDistance * sinf(DEG2RAD*(isoAngle))
+				};
+				camera.target = playerPos;
+				camera.up = (Vector3){0, 1, 0};
+				camera.projection = CAMERA_ORTHOGRAPHIC;
+				camera.fovy = 50.0f;
+				break;
+			}
 		}
 		
+		if (cameraMode != ISOMETRIC) {
+			Vector2 mouseDelta = GetMouseDelta();
+			playerRotation -= mouseDelta.x * mouseSensitivity;
+			cameraPitch += mouseDelta.y * mouseSensitivity * 0.5f;
+			cameraPitch = Clamp(cameraPitch, -MAX_PITCH, MAX_PITCH);
+		}
 		Playerdo();
-		//flow();
+		static float simAccumulator = 0.0f;
+		simAccumulator += GetFrameTime();
+		if (simAccumulator >= 1.0f/24.0f) { // 30Hz物理更新
+			flow();
+			simAccumulator -= 1.0f/24.0f;
+		}
 		BeginDrawing();
 		ClearBackground(SKYBLUE);
 		BeginMode3D(camera);
-		terrainVertices.clear();
-		terrainColors.clear();
-		waterVertices.clear();
-		waterColors.clear();
-		
-		// 计算可见区域
-		int startX = max(1, (int)playerX - BeAbleSee);
-		int endX = min(n-2, (int)playerX + BeAbleSee);
-		int startZ = max(1, (int)playerZ - BeAbleSee);
-		int endZ = min(m-2, (int)playerZ + BeAbleSee);
+		BeginScissorMode(0,0,GetScreenWidth(),GetScreenHeight());
 		// 绘制地形
+		BeginBlendMode(BLEND_ALPHA);
+		
+		for (int i = 0; i < 40; i++) {
+			for (int j = 0; j < 27; j++) {
+				Vector3 pos = { (float)i+QXX, 2, (float)j+QXZ };
+				if(QX[i][j]=='#') DrawCubeV(pos, {1.0f, 1.0f, 1.0f}, BLACK);
+				else if(QX[i][j]=='.') DrawCubeV(pos, {1.0f, 1.0f, 1.0f}, WHITE);
+			}
+		}
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j = playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 				
 				Vector3 pos = { (float)i, a[i][j] * 0.5f, (float)j };
 				DrawCubeV(pos, {1.0f, a[i][j], 1.0f}, Color{ 100, (unsigned char)a[i][j]*5, 100, 255 });
 				
-				
-				if (w[i][j] > 0.0f) {
-					Vector3 waterPos = { pos.x, w[i][j]*0.5f+a[i][j], pos.z };
-					DrawCubeV(waterPos, {1.0f, w[i][j], 1.0f }, BLUE);
+				if (w[i][j] > 0.01f) {
+					Vector3 waterPos = { 
+						(float)i, 
+						a[i][j] + w[i][j] * 0.5f,  // 精确的水体位置
+						(float)j 
+					};
+					
+					// 动态颜色：水深影响颜色和透明度
+					const float depth = w[i][j];
+					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+					const Color waterColor = {
+						30,  // R
+						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
+						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
+						alpha  // A
+					};
+					
+					DrawCubeV(waterPos, 
+						Vector3{1.0f, w[i][j], 1.0f}, 
+						waterColor
+						);
 				}
 				
 			}
 		}
-		if (!terrainVertices.empty()) {
-			UpdateMeshBuffer(terrainMesh, 0, terrainVertices.data(), terrainVertices.size() * sizeof(Vector3), 0);
-			UpdateMeshBuffer(terrainMesh, 3, terrainColors.data(), terrainColors.size() * sizeof(Color), 0);
-			DrawMesh(terrainMesh, LoadMaterialDefault(), MatrixIdentity());
+		
+		if(cameraMode != FIRST_PERSON){
+			// 计算立方体中心位置（考虑玩家高度）
+			Vector3 cubeCenter = {
+				playerPos.x,
+				playerPos.y + PlayerHeight/2.0f, // 将立方体垂直居中
+				playerPos.z
+			};
+			
+			// 应用旋转和平移变换
+			rlPushMatrix();
+			rlTranslatef(cubeCenter.x, cubeCenter.y, cubeCenter.z);
+			rlRotatef(playerRotation, 0.0f, 1.0f, 0.0f); // 绕Y轴旋转（注意符号）
+			
+			// 绘制旋转后的立方体（原点位于中心）
+			DrawCube(Vector3Zero(), 0.8f, PlayerHeight, 0.8f, RED);
+			DrawCubeWiresV(Vector3Zero(), (Vector3){0.8f, PlayerHeight, 0.8f}, DARKGRAY);
+			
+			rlPopMatrix();
 		}
 		
-		// 更新水体网格
-		if (!waterVertices.empty()) {
-			UpdateMeshBuffer(waterMesh, 0, waterVertices.data(), waterVertices.size() * sizeof(Vector3), 0);
-			UpdateMeshBuffer(waterMesh, 3, waterColors.data(), waterColors.size() * sizeof(Color), 0);
-			DrawMesh(waterMesh, LoadMaterialDefault(), MatrixIdentity());
-		}
-		if(!isFirstPerson){
-			// 绘制玩家
-			DrawCubeV(playerPos, {0.8f, 1.6f, 0.8f}, RED);
-			DrawCubeWiresV(playerPos, {0.8f, 1.6f, 0.8f}, DARKGRAY);
-		}
-		
-		
+		EndScissorMode();
 		EndMode3D();
 		if(!HideUI)DrawHUD();
 		
 		EndDrawing();
 	}
-	UnloadMesh(terrainMesh);
-	UnloadMesh(waterMesh);
+	
 	CloseWindow();
 	return 0;
 }
 
 void DrawHUD(){
-
+	
 	DrawRectangle(0,GetScreenHeight()-20, g_stats.health / 100*GetScreenWidth()/2, 20, RED);
 	DrawText("Health:", 0+10, GetScreenHeight()-20, 20, WHITE);// 生命值
 	
@@ -235,49 +385,88 @@ void DrawHUD(){
 	
 	DrawText(TextFormat("%.1f,%.1f,%.1f", playerX, a[(int)round(playerX)][(int)round(playerZ)],playerZ), 10, 10, 20, BLACK);// 调试信息
 	DrawFPS(10, 40);
+	
 }
 
 void Playerdo() {
-	if (IsKeyPressed(KEY_F1)) {
-		HideUI = !HideUI;
-	}if (IsKeyPressed(KEY_F2)) {
-		TakeScreenshot("ltl.png"); 
+	if (IsKeyPressed(KEY_F1)) HideUI = !HideUI;
+	if (IsKeyPressed(KEY_F2)) {
+		time_t now = time(NULL);
+		struct tm *tm = localtime(&now);
+		char filename[256];
+		strftime(filename, sizeof(filename), "screenshots_%Y%m%d_%H%M%S.png", tm);
+		TakeScreenshot(filename); 
 	}
+	
+	// F5切换视角模式
 	if (IsKeyPressed(KEY_F5)) {
-		isFirstPerson = !isFirstPerson;
-	}
-	
-	
-	// 检测双击W逻辑
-	if (IsKeyPressed(KEY_W)) {
-		float currentTime = GetTime();
-		if (currentTime - lastWPressedTime < floatPressThreshold) {
-			wPressCount++;
-			if (wPressCount >= 2) {
-				isSprinting = true;
-				wPressCount = 0; // 触发后重置计数
-			}
-		} else {
-			wPressCount = 1; // 超过时间间隔重新计数
+		cameraMode = static_cast<MyCameraMode>((static_cast<int>(cameraMode) + 1));
+		if(static_cast<int>(cameraMode) > ISOMETRIC) cameraMode = FIRST_PERSON;
+		
+		if(cameraMode == ISOMETRIC) {
+			isoDistance = 25.0f;
+			isoAngle = 45.0f;
 		}
-		lastWPressedTime = currentTime;
 	}
 	
-	// 松开W时重置疾跑状态
-	if (IsKeyReleased(KEY_W)) {
-		isSprinting = false;
+	// 等轴视角滚轮控制
+	if (cameraMode == ISOMETRIC) {
+		float wheel = GetMouseWheelMove();
+		isoDistance = Clamp(isoDistance - wheel * 2.0f, 10.0f, 100.0f);
 	}
+	if (g_doubleClick.Check(KEY_LEFT_SHIFT)) {
+		isDoubleClickHeld = true;
+	}
+	
+	// 按下状态处理
+	if (IsKeyDown(KEY_LEFT_SHIFT)) {
+		if (isDoubleClickHeld) {
+			PlayerHeight = 0.4f;  // 双击后按住
+		} else {
+			PlayerHeight = 0.9f;   // 普通按住
+		}
+		shiftPressed = true;
+	} 
+	// 释放状态处理
+	else if (IsKeyReleased(KEY_LEFT_SHIFT)) {
+		PlayerHeight = 1.8f;
+		isDoubleClickHeld = false;
+		shiftPressed = false;
+	}
+	
+	// 防止在未双击时保持状态
+	if (!shiftPressed) {
+		isDoubleClickHeld = false;
+	}
+	if (IsKeyReleased(KEY_LEFT_SHIFT)) PlayerHeight=1.8f;
+	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 10.0;
+	if (IsKeyDown(KEY_T)) {
+		for (int dx = -5; dx <= 5; ++dx)
+			for (int dy = -5; dy <= 5; ++dy)
+				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
+	}
+	if (IsKeyDown(KEY_Q)) {
+		for (int dx = -2; dx <= 2; ++dx)
+			for (int dy = -2; dy <= 2; ++dy)
+				a[(int)round(playerX)+dx][(int)round(playerZ)+dy] -=0.25;
+	}
+	if (IsKeyDown(KEY_E)) {
+		for (int dx = -2; dx <= 2; ++dx)
+			for (int dy = -2; dy <= 2; ++dy)
+				a[(int)round(playerX)+dx][(int)round(playerZ)+dy] +=0.25;
+	}
+	if (g_doubleClick.Check(KEY_W))isSprinting = true;// 检测双击W逻辑
+	if (IsKeyReleased(KEY_W)) isSprinting = false;// 松开W时重置疾跑状态
 	Vector2 inputDir = {0};
-	float xh=0.002;
-	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - xh, 0);}
-	if (IsKeyDown(KEY_D)) {inputDir.x = -1;g_stats.hunger = max(g_stats.hunger -xh, 0);}
+	if (IsKeyDown(KEY_W)) {inputDir.y = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
+	if (IsKeyDown(KEY_D)) {inputDir.x = -1;g_stats.hunger = max(g_stats.hunger -hun*2, 0);}
 	float currentSpeed = moveSpeed;
 	if (isSprinting && inputDir.y == 1) { // 只有向前时加速
 		currentSpeed *= 2.0f; // 疾跑速度翻倍
 		// 这里可以添加体力消耗逻辑
-		g_stats.hunger = max(g_stats.hunger - 2.5*xh, 0);
+		g_stats.hunger = max(g_stats.hunger - 2.5*hun, 0);
 	}
 	
 	// 修复方向计算
@@ -296,12 +485,7 @@ void Playerdo() {
 	
 	
 	// 交互操作
-	if (IsKeyPressed(KEY_SPACE)) w[(int)playerX][(int)playerZ] += 10.0;
-	if (IsKeyPressed(KEY_T)) {
-		for (int dx = -1; dx <= 1; ++dx)
-			for (int dy = -1; dy <= 1; ++dy)
-				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
-	}
+	
 }
 /*------------------*/
 void build_PerlinNoise() {
@@ -408,120 +592,13 @@ void build_PerlinNoise() {
 	for(int i = 1; i <= n; i++) {
 		for(int j = 1; j <= m; j++) {
 			a[i][j] = Clamp(a[i][j], 0.0f, 55.0f);
+			w[i][j]=max(15-a[i][j],0);
 		}
 	}
-}
-void AddCubeVertices(Vector3 center, Vector3 size, Color color, std::vector<Vector3> &vertices, std::vector<Color> &colors) {
-	float sx = size.x / 2;
-	float sy = size.y / 2;
-	float sz = size.z / 2;
-	
-	Vector3 corners[] = {
-		{center.x - sx, center.y - sy, center.z - sz},
-		{center.x + sx, center.y - sy, center.z - sz},
-		{center.x + sx, center.y + sy, center.z - sz},
-		{center.x - sx, center.y + sy, center.z - sz},
-		{center.x - sx, center.y - sy, center.z + sz},
-		{center.x + sx, center.y - sy, center.z + sz},
-		{center.x + sx, center.y + sy, center.z + sz},
-		{center.x - sx, center.y + sy, center.z + sz}
-	};
-	
-	// 前面
-	vertices.push_back(corners[0]); colors.push_back(color);
-	vertices.push_back(corners[1]); colors.push_back(color);
-	vertices.push_back(corners[2]); colors.push_back(color);
-	vertices.push_back(corners[0]); colors.push_back(color);
-	vertices.push_back(corners[2]); colors.push_back(color);
-	vertices.push_back(corners[3]); colors.push_back(color);
-	
-	// 右面
-	vertices.push_back(corners[1]); colors.push_back(color);
-	vertices.push_back(corners[5]); colors.push_back(color);
-	vertices.push_back(corners[6]); colors.push_back(color);
-	vertices.push_back(corners[1]); colors.push_back(color);
-	vertices.push_back(corners[6]); colors.push_back(color);
-	vertices.push_back(corners[2]); colors.push_back(color);
-	
-	// 后面
-	vertices.push_back(corners[5]); colors.push_back(color);
-	vertices.push_back(corners[4]); colors.push_back(color);
-	vertices.push_back(corners[7]); colors.push_back(color);
-	vertices.push_back(corners[5]); colors.push_back(color);
-	vertices.push_back(corners[7]); colors.push_back(color);
-	vertices.push_back(corners[6]); colors.push_back(color);
-	
-	// 左面
-	vertices.push_back(corners[4]); colors.push_back(color);
-	vertices.push_back(corners[0]); colors.push_back(color);
-	vertices.push_back(corners[3]); colors.push_back(color);
-	vertices.push_back(corners[4]); colors.push_back(color);
-	vertices.push_back(corners[3]); colors.push_back(color);
-	vertices.push_back(corners[7]); colors.push_back(color);
-	
-	// 顶面
-	vertices.push_back(corners[3]); colors.push_back(color);
-	vertices.push_back(corners[2]); colors.push_back(color);
-	vertices.push_back(corners[6]); colors.push_back(color);
-	vertices.push_back(corners[3]); colors.push_back(color);
-	vertices.push_back(corners[6]); colors.push_back(color);
-	vertices.push_back(corners[7]); colors.push_back(color);
-	
-	// 底面
-	vertices.push_back(corners[4]); colors.push_back(color);
-	vertices.push_back(corners[5]); colors.push_back(color);
-	vertices.push_back(corners[1]); colors.push_back(color);
-	vertices.push_back(corners[4]); colors.push_back(color);
-	vertices.push_back(corners[1]); colors.push_back(color);
-	vertices.push_back(corners[0]); colors.push_back(color);
-}
-void InitDynamicMesh(Mesh &mesh) {
-	mesh = {0};
-	mesh.vboId = (unsigned int *)RL_CALLOC(7, sizeof(unsigned int));
 }
 /*|-------废物部分-------|*/
 /*| ！！！屎山部分！！！ |*/
-void flow(){
-	memset(neww,0,sizeof(neww));
-	
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			if(w[i][j] < 0.1) continue;
-			
-			// 边界消减（减缓消减速度）
-			if((i==1||i==n||j==1||j==m) && w[i][j]>=1){
-				neww[i][j] -= 0.1; // 改为每次减少0.1
-			}
-			
-			// 四方向流动（使用实际地形a数组）
-			int dx[] = {-1, 0, 1, 0};
-			int dy[] = {0, -1, 0, 1};
-			for(int k=0; k<4; k++){
-				int ni = i + dx[k];
-				int nj = j + dy[k];
-				
-				if(ni>=1 && ni<=n && nj>=1 && nj<=m){
-					// 比较实际地形高度a，而不是l
-					if(a[i][j] + w[i][j] > a[ni][nj] + w[ni][nj]){ // 考虑水位高度
-						float heightDiff = (a[i][j] + w[i][j]) - (a[ni][nj] + w[ni][nj]);
-						float flowAmount = min(w[i][j], heightDiff * 0.2); // 增加流动系数
-						flowAmount = max(flowAmount, 0.0);
-						neww[i][j] -= flowAmount;
-						neww[ni][nj] += flowAmount;
-					}
-				}
-			}
-		}
-	}
-	
-	// 应用变化
-	for(int i=1;i<=n;i++){
-		for(int j=1;j<=m;j++){
-			w[i][j] += neww[i][j];
-			w[i][j] = max(w[i][j], 0.0);
-		}
-	}
-}
+
 
 bool LoadHeightmapFromPNG(const char* filename) {
 	// 加载图像
@@ -555,4 +632,57 @@ bool LoadHeightmapFromPNG(const char* filename) {
 	UnloadImage(img);
 	return true;
 }
-
+void flow() {
+	static const int dx[] = {-1, 0, 1, 0}; // 静态常量方向数组
+	static const int dy[] = {0, -1, 0, 1};
+	
+	// 计算有效遍历范围
+	const int start_i = max(1, playerX - BeAbleSee);
+	const int end_i = min(n, playerX + BeAbleSee);
+	const int start_j = max(1, playerZ - BeAbleSee);
+	const int end_j = min(m, playerZ + BeAbleSee);
+	
+	memset(neww, 0, sizeof(neww)); // 清空水流变化数组
+	
+	// 第一遍遍历：计算水流变化
+	for(int i = start_i; i <= end_i; ++i) {
+		for(int j = start_j; j <= end_j; ++j) {
+			const float w_ij = w[i][j];
+			if (w_ij < 0.001f) continue; // 忽略无水单元格
+			if (w_ij < 0.001f)
+				// 边界消减（每次减少0.1，不依赖水位）
+				if (i == 1 || i == n || j == 1 || j == m) {
+					neww[i][j] -= 0.1f;
+				}
+			
+			// 缓存地形高度和水位总和
+			const float currentHeight = a[i][j] + w_ij;
+			
+			// 四方向流动处理
+			for(int k = 0; k < 4; ++k) {
+				const int ni = i + dx[k];
+				const int nj = j + dy[k];
+				
+				if(ni >= 1 && ni <= n && nj >= 1 && nj <= m) {
+					const float neighborHeight = a[ni][nj] + w[ni][nj];
+					
+					if(currentHeight > neighborHeight) {
+						const float heightDiff = currentHeight - neighborHeight;
+						const float flowAmount = max(min(w_ij, heightDiff * 0.2f), 0.0f);
+						
+						neww[i][j] -= flowAmount;
+						neww[ni][nj] += flowAmount;
+					}
+				}
+			}
+		}
+	}
+	
+	// 第二遍遍历：应用水流变化
+	for(int i = start_i; i <= end_i; ++i) {
+		for(int j = start_j; j <= end_j; ++j) {
+			w[i][j] = max(w[i][j] + neww[i][j], 0.0f);
+			if(a[i][j]<=0) w[i][j]=max(w[i][j]+0.005*a[i][j],0);
+		}
+	}
+}
