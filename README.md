@@ -6,6 +6,7 @@
 - 更丰富的**细节**（working）
 - 更**漂亮的水**（working）
 - 更**大的地图**（working）
+  -**无限**的地图（working）
 - 生成**植物**（working）
 - 生成**QX**（进作为添加实体的前瞻）（working）
 ## Ownderline0.4
@@ -13,13 +14,15 @@
 - 使用了着色器，把显示**像素化**了。
 - 把渲染改为了**三角形网格**。
 - 添加了**鼠标交互**。
-- 优化水体显示（working）
+- 优化水体显示（移到Ownderline0.5）
 ## Ownderline0.3
-记不到了。。。
+- 添加**QX**。
+- 可以**蹲下**、**趴下**了。
 ## Ownderline0.2
-记不到了。。。
+- 添加三种**视角**。
 ## Ownderline
-继承于EasyWorld2.0
+继承于**EasyWorld2.0**。
+- 添加**生存状态**。
 # EasyWorld（停止更新）
 ## EasyWorld3.0 （不可运行！！！）
 ### Tips
