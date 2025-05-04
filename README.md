@@ -4,6 +4,7 @@
 # Ownderline
 ## Ownderline0.5（working）
 - 优化**地形**生成。
+- 优化**准心显示**。
 - 更丰富的**细节**（working）
 - 更**漂亮的水**（working）
 - 更**大的地图**（working）
