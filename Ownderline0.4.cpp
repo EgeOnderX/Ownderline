@@ -209,16 +209,16 @@ int main() {
 	camera.up = {0, 1, 0};
 	
 	
-	for (int i = 0+QXX-20; i < 40+QXX+20; i++) for (int j = 0+QXZ-20; j < 27+QXZ+20; j++) a[i][j]=1;
+	for (int i = 0+QXX-5; i < 40+QXX+5; i++) for (int j = 0+QXZ-5; j < 27+QXZ+5; j++) a[i][j]=1;
 	//for (int i = 1; i <=n; i++) {for (int j = 1; j <=m; j++) {a[i][j]=1;
 	while (!WindowShouldClose()) {
-		//w[256][256]+=10.0/w[256][256];
-		//if(w[256][256]<0.1) w[256][256]=0.1;
+		if(w[256][256]<0.1) w[256][256]=0.1;
+		w[256][256]+=10.0/w[256][256];
 		moveSpeed=g_stats.hunger*0.06f+1;
 		moveSpeed=moveSpeed/1.8f*PlayerHeight;
 		Time+=0.005;
 		
-		for(int i = 1; i <= n; i++) for(int j = 1; j <= m; j++) if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
+		//for(int i = 1; i <= n; i++) for(int j = 1; j <= m; j++) if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
 		
 		/*
 		int i=600,j=600;
