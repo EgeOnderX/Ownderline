@@ -1,17 +1,24 @@
 # Big Tips
 尽量本地编译，```.exe```不保证最新 or 可运行。
 # Ownderline
+## Ownderline0.5（working）
+- 优化地形生成。
+- 更丰富的细节（working）
+- 更漂亮的水（working）
+- 更大的地图（working）
+- 生成植物（working）
+- 生成青蛙（working）
 ## Ownderline0.4
 - 帧率是原来的3.5倍！
 - 使用了着色器，把显示像素化了。
 - 把渲染改为了三角形网格。
-- 优化了水体显示。
 - 添加了鼠标交互。
+- 优化水体显示（working）
 ## Ownderline0.3
 记不到了。。。
 ## Ownderline0.2
 记不到了。。。
-## Ownderline0.1
+## Ownderline
 记不到了。。。
 # EasyWorld（停止更新）
 ## EasyWorld3.0 （不可运行！！！）
