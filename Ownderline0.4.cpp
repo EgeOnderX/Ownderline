@@ -323,9 +323,10 @@ int main() {
 				else if(QX[i][j]=='.') DrawCubeV(pos, {1.0f, 1.0f, 1.0f}, WHITE);
 			}
 		}
-		for (int i = max(playerX-BeAbleSee,1); i <= min(playerX+BeAbleSee,n); i++) {
-			for (int j =max( playerZ-BeAbleSee,1); j <= min(playerZ+BeAbleSee,m); j++) {
-				
+	//	for (int i = max(playerX-BeAbleSee,1); i <= min(playerX+BeAbleSee,n); i++) {
+	//		for (int j =max( playerZ-BeAbleSee,1); j <= min(playerZ+BeAbleSee,m); j++) {
+		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+			for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
 				if (1) {
 					// 定义四边形四个顶点（Y轴向上）
 					Vector3 v1 = { i, a[i][j], j };
@@ -349,12 +350,12 @@ int main() {
 						255
 					});
 				}
+				// 定义四边形四个顶点（Y轴向上）
+				Vector3 v1 = { i, a[i][j]+w[i][j], j };
+				Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
+				Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
+				Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
 				if (w[i][j]+w[i+1][j]+w[i][j+1]>0.0001) {
-					// 定义四边形四个顶点（Y轴向上）
-					Vector3 v1 = { i, a[i][j]+w[i][j], j };
-					Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
-					Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
-					Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
 					const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
 					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
 					const Color waterColor = {
@@ -367,12 +368,7 @@ int main() {
 					DrawTriangle3D(v1, v3, v2,ColorAlpha(BLUE,0.5f));
 					
 				}
-				if (w[i][j]+w[i-1][j]+w[i][j-1]>0.0001) {
-					// 定义四边形四个顶点（Y轴向上）
-					Vector3 v1 = { i, a[i][j]+w[i][j], j };
-					Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
-					Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
-					Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
+				if (w[i+1][j]+w[i][j+1]+w[i+1][j+1]>0.0001) {
 					const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
 					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
 					const Color waterColor = {
@@ -878,8 +874,8 @@ float GetTerrainHeight(float x, float z) {
 	int j = static_cast<int>(floor(z));
 	
 	// 边界保护
-	i = Clamp(i, 1, n-2); // 确保i+1不越界
-	j = Clamp(j, 1, m-2); // 确保j+1不越界
+	i = Clamp(i, 1, n); // 确保i+1不越界
+	j = Clamp(j, 1, m); // 确保j+1不越界
 	
 	// 计算相对位置
 	float dx = x - i;
