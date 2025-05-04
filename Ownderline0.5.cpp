@@ -387,7 +387,7 @@ int main() {
 				
 			}
 		}
-		
+		EndBlendMode();
 		if(cameraMode != FIRST_PERSON){
 			// 计算立方体中心位置（考虑玩家高度）
 			Vector3 cubeCenter = {
@@ -402,14 +402,71 @@ int main() {
 			rlRotatef(playerRotation, 0.0f, 1.0f, 0.0f); // 绕Y轴旋转（注意符号）
 			
 			// 绘制旋转后的立方体（原点位于中心）
-			DrawCube(Vector3Zero(), 0.8f, PlayerHeight, 0.8f, RED);
+			DrawCubeV(Vector3Zero(), (Vector3){0.8f, PlayerHeight, 0.8f}, RED);
 			DrawCubeWiresV(Vector3Zero(), (Vector3){0.8f, PlayerHeight, 0.8f}, DARKGRAY);
 			
 			rlPopMatrix();
 		}
 		if(lastHit.i != -1) {
+			for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+				for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
+					if (1) {
+						// 定义四边形四个顶点（Y轴向上）
+						Vector3 v1 = { i, a[i][j], j };
+						Vector3 v2 = { i+1,a[i+1][j], j };
+						Vector3 v3 = { i,a[i][j+1], j+1 };
+						Vector3 v4 = { i+1,a[i+1][j+1], j+1 };
+						
+						// 绘制第一个三角形（逆时针顺序）
+						DrawTriangle3D(v1, v3, v2, Color{
+							100, 
+							(unsigned char)Clamp((v1.y+ v3.y +v2.y)*0.6*2, 0, 255),
+							100, 
+							255
+						});
+						
+						// 绘制第二个三角形（逆时针顺序）
+						DrawTriangle3D(v2, v3, v4, Color{
+							100,
+							(unsigned char)Clamp((v2.y+ v3.y +v2.y)*0.6*2, 0, 255),
+							100,
+							255
+						});
+					}
+					// 定义四边形四个顶点（Y轴向上）
+					Vector3 v1 = { i, a[i][j]+w[i][j], j };
+					Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
+					Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
+					Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
+					if (w[i][j]+w[i+1][j]+w[i][j+1]>0.0001) {
+						const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
+						const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+						const Color waterColor = {
+							(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
+							(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
+							(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
+							(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
+						};
+						// 绘制第一个三角形（逆时针顺序）
+						DrawTriangle3D(v1, v3, v2,ColorAlpha(BLUE,0.5f));
+						
+					}
+					if (w[i+1][j]+w[i][j+1]+w[i+1][j+1]>0.0001) {
+						const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
+						const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+						const Color waterColor = {
+							(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
+							(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
+							(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
+							(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
+						};
+						// 绘制第二个三角形（逆时针顺序）
+						DrawTriangle3D(v2, v3, v4,ColorAlpha(BLUE, 0.5f));
+					}
+					
+				}
+			}
 			Vector3 v1, v2, v3;
-			
 			if(lastHit.isFirstTriangle) {
 				v1 = {lastHit.i, a[lastHit.i][lastHit.j], lastHit.j};
 				v2 = {lastHit.i, a[lastHit.i][lastHit.j+1], lastHit.j+1};
@@ -433,7 +490,7 @@ int main() {
 			// 在交点处绘制小立方体
 			DrawCubeWires(lastHit.position, 0.1f, 0.1f, 0.1f, RED);
 		}
-		EndBlendMode();
+		
 		EndScissorMode();
 		EndMode3D();
 		EndTextureMode();
