@@ -2,28 +2,33 @@
 #include <raymath.h>
 #include <bits/stdc++.h>
 #include <rlgl.h>
-#pragma GCC optimize(3)
+
+#pragma GCC optimize("Ofast")
+#pragma GCC optimize("unroll-loops")
+#pragma GCC optimize("tree-vectorize")
+#pragma GCC target("avx2,fma")
+
 #define min(_a,_b) (_a)<(_b)?(_a):(_b)
 #define max(_a,_b) (_a)>(_b)?(_a):(_b)
 using namespace std;
 
-const int renderWidth = 640/4;   // 低分辨率宽度（数值越小像素越明显）
-const int renderHeight = 480/4;  // 低分辨率高度
+const int renderWidth = 640/1;   // 低分辨率宽度（数值越小像素越明显）
+const int renderHeight = 480/1;  // 低分辨率高度
 RenderTexture2D target;        // 离屏渲染目标
 Shader ditherShader;           // 抖动着色器
 // 地形参数
-const int n = 512, m = 512;
-float a[514][514];
-float w[514][514];
-float l[514][514];
-float neww[514][514];
+const int n = 1024, m = 1024;
+float a[1030][1030];
+float w[1030][1030];
+float l[1030][1030];
+float neww[1030][1030];
 float scale = 0.005;
 const int octaves = 7;
 float BeAbleSee=64;
 
 float flowRate = 0.8f;      // 水流速率
 float waterViscosity = 0.15f; // 水流粘滞系数
-float inertia[514][514][2];// 水流惯性矢量场
+float inertia[1030][1030][2];// 水流惯性矢量场
 
 // 玩家参数
 float playerX = n/ 2.0f;
@@ -103,7 +108,11 @@ char QX[40][29]={
 	"   #                  #",//38
 	"  ##                  ###"
 };
-
+struct Plant {
+	Vector3 position;
+	int type; // 0:草 1:树
+};
+vector<Plant> plants;
 struct DoubleClickDetector {
 	unordered_map<int, float> lastPressTime;  // 按键最后按压时间
 	unordered_map<int, int> pressCount;       // 连续按压计数
@@ -177,8 +186,7 @@ struct HitInfo {
 	Vector3 normal;
 	Vector3 v1, v2, v3; // 新增三个顶点坐标
 	bool isFirstTriangle; // 标识是否是第一个三角形
-};
-static HitInfo lastHit = {-1, -1, false, false, {0}, {0}};
+}lastHit /*= {-1, -1, false, false, {0}, {0}}*/;
 void flow();
 /*废弃*/bool LoadHeightmapFromPNG(const char* filename);
 void build_PerlinNoise();/*生成地形*/
@@ -199,11 +207,11 @@ int main() {
 	build_PerlinNoise();
 	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI );
 	
-	InitWindow(640, 480, "Ownderline0.4");
+	InitWindow(640, 480, "Ownderline0.5");
 	target = LoadRenderTexture(renderWidth, renderHeight); // 创建离屏画布
 	SetTextureFilter(target.texture, TEXTURE_FILTER_POINT); // 关键：设置点过滤模式
 	ditherShader = LoadShader(0, "dither.fs");
-	SetTargetFPS(114514);
+	SetTargetFPS(1141030);
 	DisableCursor();
 	
 	g_stats.ambientTemp = a[(int)round(playerX)][(int)round(playerZ)] * 0.5f;// 初始化生存状态
@@ -386,6 +394,29 @@ int main() {
 				
 			}
 		}
+		/*
+		// 在绘制地形循环后添加
+		for (auto& plant : plants) {
+			if (Vector3Distance(plant.position, playerPos) < BeAbleSee*1.2f) {
+				// 草：绿色金字塔
+				if (plant.type == 0) {
+					DrawCylinder(plant.position, 0.1f, 0.0f, 0.3f, 4, GREEN);
+				} 
+				// 树：棕色树干+绿色树冠
+				else { 
+					DrawCylinderEx(
+						plant.position,
+						(Vector3){plant.position.x, plant.position.y+1.5f, plant.position.z},
+						0.3f, 0.3f, 8, BROWN
+						);
+					DrawSphere(
+						(Vector3){plant.position.x, plant.position.y+2.0f, plant.position.z},
+						0.8f, Color{34, 139, 34, 255}
+						);
+				}
+			}
+		}
+		*/
 		EndBlendMode();
 		if(cameraMode != FIRST_PERSON){
 			// 计算立方体中心位置（考虑玩家高度）
@@ -407,15 +438,15 @@ int main() {
 			rlPopMatrix();
 		}
 		if(lastHit.i != -1) {
-			for (int i = lastHit.i-1; i <= lastHit.i+2; i++) {
-				for (int j =lastHit.j-1; j <= lastHit.j+2; j++) {
+			for (int i = lastHit.i-5; i <= lastHit.i+1+5; i++) {
+				for (int j =lastHit.j-5; j <= lastHit.j+1+5; j++) {
 						// 定义四边形四个顶点（Y轴向上）
 						Vector3 v1 = { i, a[i][j], j };
 						Vector3 v2 = { i+1,a[i+1][j], j };
 						Vector3 v3 = { i,a[i][j+1], j+1 };
-						DrawLine3D(lastHit.v1, lastHit.v2, GRAY);
-						DrawLine3D(lastHit.v2, lastHit.v3, GRAY);
-						DrawLine3D(lastHit.v3, lastHit.v1, GRAY);
+						DrawLine3D(v1, v2, GRAY);
+						DrawLine3D(v2, v3, GRAY);
+						DrawLine3D(v3, v1, GRAY);
 					
 				}
 			}
@@ -476,7 +507,7 @@ int main() {
 	return 0;
 }
 
-void DrawHUD(){
+inline void DrawHUD(){
 	
 	DrawRectangle(0,GetScreenHeight()-20, g_stats.health / 100*GetScreenWidth()/2, 20, RED);
 	DrawText("Health:", 0+10, GetScreenHeight()-20, 20, WHITE);// 生命值
@@ -503,7 +534,7 @@ void DrawHUD(){
 	}
 }
 
-void Playerdo(Camera3D camera) {
+inline void Playerdo(Camera3D camera) {
 	
 	if (IsKeyPressed(KEY_F1)) HideUI = !HideUI;
 	if (IsKeyPressed(KEY_F2)) {
@@ -557,8 +588,8 @@ void Playerdo(Camera3D camera) {
 	if (IsKeyReleased(KEY_LEFT_SHIFT)) PlayerHeight=1.8f;
 	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 100.0;
 	if (IsKeyDown(KEY_T)) {
-		for (int dx = -5; dx <= 5; ++dx)
-			for (int dy = -5; dy <= 5; ++dy)
+		for (int dx = -25; dx <= 25; ++dx)
+			for (int dy = -25; dy <= 25; ++dy)
 				w[(int)round(playerX)+dx][(int)round(playerZ)+dy] = 0;
 	}
 	if (IsKeyDown(KEY_Q)) {
@@ -654,10 +685,11 @@ void Playerdo(Camera3D camera) {
 	
 }
 /*------------------*/
-void build_PerlinNoise() {
+inline void build_PerlinNoise() {
 	PerlinNoise pn(time(0));
 	const int erosionIterations = 50;  // 侵蚀迭代次数
-	
+	cout<<"LTL";
+	TraceLog(LOG_INFO, "[1/5]:生成基础地形");
 	// 阶段1：生成基础地形（分形噪声）
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
@@ -683,9 +715,9 @@ void build_PerlinNoise() {
 			a[i][j] = height * 80.0f; // 基础高度范围0-80
 		}
 	}
-	
+	TraceLog(LOG_INFO, "[2/5]:构造板块运动模拟");
 	// 阶段2：构造板块运动模拟
-	float plateMap[514][514] = {0};
+	float plateMap[1030][1030] = {0};
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
 			float plate = pn.noise(i*0.01f, j*0.01f);
@@ -696,7 +728,7 @@ void build_PerlinNoise() {
 			}
 		}
 	}
-	
+	TraceLog(LOG_INFO, "[3/5]:热力侵蚀");
 	// 阶段3：热力侵蚀（减少陡峭地形）
 	for (int iter = 0; iter < erosionIterations; iter++) {
 		for (int i = 2; i < n-1; i++) {
@@ -726,7 +758,7 @@ void build_PerlinNoise() {
 			}
 		}
 	}
-	
+	TraceLog(LOG_INFO, "[4/5]:河流生成");
 	// 阶段4：河流生成算法
 	for (int river = 0; river < 20; river++) { // 生成20条河流
 		// 随机选择源头（高海拔区域）
@@ -781,6 +813,7 @@ void build_PerlinNoise() {
 		}
 	}
 	*/
+	TraceLog(LOG_INFO, "[5/5]:地形高度调整");
 	// 修改阶段5：地形高度调整（新增）
 	float landBoost = 8.0f; // 陆地整体抬升量
 	float mountainBoost = 15.0f; // 山脉额外抬升
@@ -826,8 +859,27 @@ void build_PerlinNoise() {
 			if (a[i][j] < 0.0f) a[i][j] = 0.0f; // 确保海底不低于水面
 		}
 	}
+	/*
+	const float TREE_HEIGHT = 15.0f;
+	for (int i = 5; i <= n-5; i += 2) {
+		for (int j = 5; j <= m-5; j += 2) {
+			float noiseVal = pn.noise(i*0.1f, j*0.1f);
+			// 在平缓区域生成（坡度小于30度）
+			//if (fabs(a[i+1][j] - a[i][j] < 0.5f )&&fabs(a[i][j+1] - a[i][j] < 0.5f)) {
+				if (a[i][j] > 12.0f ) {
+					if (rand()%100 < 30) { // 概率生成树
+						plants.push_back({ {i+0.5f, a[i][j], j+0.5f}, 1});
+					}
+					else if (rand()%100 < 100) { // 概率生成草
+						plants.push_back({ {i+0.5f, a[i][j], j+0.5f}, 0});
+					}
+				}
+			//}
+		}
+	}
+	*/
 }
-HitInfo Raycast(Vector3 start, Vector3 dir, float maxDist) {
+inline HitInfo Raycast(Vector3 start, Vector3 dir, float maxDist) {
 	HitInfo result = {-1, -1, false, {0}, {0}, {0}, {0}, {0}, false};
 	dir = Vector3Normalize(dir);
 	
@@ -916,7 +968,7 @@ HitInfo Raycast(Vector3 start, Vector3 dir, float maxDist) {
 /*| ！！！屎山部分！！！ |*/
 
 
-bool LoadHeightmapFromPNG(const char* filename) {
+inline bool LoadHeightmapFromPNG(const char* filename) {
 	// 加载图像
 	Image img = LoadImage(filename);
 	if (!img.data) {
@@ -948,7 +1000,7 @@ bool LoadHeightmapFromPNG(const char* filename) {
 	UnloadImage(img);
 	return true;
 }
-float GetTerrainHeight(float x, float z) {
+inline float GetTerrainHeight(float x, float z) {
 	// 转换为网格坐标
 	int i = static_cast<int>(floor(x));
 	int j = static_cast<int>(floor(z));
@@ -1011,7 +1063,7 @@ void flow() {
 				pressureSum += a[ni][nj] + w[ni][nj];
 				validNeighbors++;
 			}
-			const float pressure = totalHeight - (validNeighbors > 0 ? pressureSum/validNeighbors : 0);
+			//const float pressure = totalHeight - (validNeighbors > 0 ? pressureSum/validNeighbors : 0);
 			
 			// 四方向流动处理
 			for(int dir = 0; dir < 4; ++dir) {
@@ -1072,7 +1124,7 @@ void flow() {
 	}
 }
 
-void InitFile(){
+inline void InitFile(){
 	freopen("dither.fs","w",stdout);
 	cout<<R"(#version 330
 
