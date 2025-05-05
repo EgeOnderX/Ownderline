@@ -8,7 +8,7 @@
 - 更丰富的**细节**（working）
 - 更**漂亮的水**（working）
 - 更**大的地图**（working）
-  -**无限**的地图（working）
+  -**无限**的地图（移到Ownderline0.6）
 - 生成**植物**（working）
 - 生成**QX**（作为添加实体的前瞻）（working）
 ## Ownderline0.4
