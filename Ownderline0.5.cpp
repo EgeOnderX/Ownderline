@@ -216,8 +216,8 @@ int main() {
 	for (int i = 0+QXX-5; i < 40+QXX+5; i++) for (int j = 0+QXZ-5; j < 27+QXZ+5; j++) a[i][j]=1;
 	//for (int i = 1; i <=n; i++) {for (int j = 1; j <=m; j++) {a[i][j]=1;
 	while (!WindowShouldClose()) {
-		if(w[256][256]<0.1) w[256][256]=0.1;
-		w[256][256]+=10.0/w[256][256];
+		//if(w[256][256]<0.1) w[256][256]=0.1;
+		//w[256][256]+=10.0/w[256][256];
 		moveSpeed=g_stats.hunger*0.06f+1;
 		moveSpeed=moveSpeed/1.8f*PlayerHeight;
 		Time+=0.005;
@@ -331,7 +331,6 @@ int main() {
 	//		for (int j =max( playerZ-BeAbleSee,1); j <= min(playerZ+BeAbleSee,m); j++) {
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
-				if (1) {
 					// 定义四边形四个顶点（Y轴向上）
 					Vector3 v1 = { i, a[i][j], j };
 					Vector3 v2 = { i+1,a[i+1][j], j };
@@ -353,12 +352,12 @@ int main() {
 						100,
 						255
 					});
-				}
+				
 				// 定义四边形四个顶点（Y轴向上）
-				Vector3 v1 = { i, a[i][j]+w[i][j], j };
-				Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
-				Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
-				Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
+				v1 = { i, a[i][j]+w[i][j], j };
+				v2 = { i+1,a[i+1][j]+w[i+1][j], j };
+				v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
+				v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
 				if (w[i][j]+w[i+1][j]+w[i][j+1]>0.0001) {
 					const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
 					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
@@ -408,64 +407,19 @@ int main() {
 			rlPopMatrix();
 		}
 		if(lastHit.i != -1) {
-			for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
-				for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
-					if (1) {
+			for (int i = lastHit.i-1; i <= lastHit.i+2; i++) {
+				for (int j =lastHit.j-1; j <= lastHit.j+2; j++) {
 						// 定义四边形四个顶点（Y轴向上）
 						Vector3 v1 = { i, a[i][j], j };
 						Vector3 v2 = { i+1,a[i+1][j], j };
 						Vector3 v3 = { i,a[i][j+1], j+1 };
-						Vector3 v4 = { i+1,a[i+1][j+1], j+1 };
-						
-						// 绘制第一个三角形（逆时针顺序）
-						DrawTriangle3D(v1, v3, v2, Color{
-							100, 
-							(unsigned char)Clamp((v1.y+ v3.y +v2.y)*0.6*2, 0, 255),
-							100, 
-							255
-						});
-						
-						// 绘制第二个三角形（逆时针顺序）
-						DrawTriangle3D(v2, v3, v4, Color{
-							100,
-							(unsigned char)Clamp((v2.y+ v3.y +v2.y)*0.6*2, 0, 255),
-							100,
-							255
-						});
-					}
-					// 定义四边形四个顶点（Y轴向上）
-					Vector3 v1 = { i, a[i][j]+w[i][j], j };
-					Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
-					Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
-					Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
-					if (w[i][j]+w[i+1][j]+w[i][j+1]>0.0001) {
-						const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
-						const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
-						const Color waterColor = {
-							(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
-							(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
-							(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
-							(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
-						};
-						// 绘制第一个三角形（逆时针顺序）
-						DrawTriangle3D(v1, v3, v2,ColorAlpha(BLUE,0.5f));
-						
-					}
-					if (w[i+1][j]+w[i][j+1]+w[i+1][j+1]>0.0001) {
-						const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
-						const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
-						const Color waterColor = {
-							(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
-							(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
-							(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
-							(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
-						};
-						// 绘制第二个三角形（逆时针顺序）
-						DrawTriangle3D(v2, v3, v4,ColorAlpha(BLUE, 0.5f));
-					}
+						DrawLine3D(lastHit.v1, lastHit.v2, GRAY);
+						DrawLine3D(lastHit.v2, lastHit.v3, GRAY);
+						DrawLine3D(lastHit.v3, lastHit.v1, GRAY);
 					
 				}
 			}
+			
 			Vector3 v1, v2, v3;
 			if(lastHit.isFirstTriangle) {
 				v1 = {lastHit.i, a[lastHit.i][lastHit.j], lastHit.j};
@@ -863,13 +817,12 @@ void build_PerlinNoise() {
 			}
 			
 			// 确保最低地形不低于水面
-			a[i][j] = max(a[i][j], WATER_LEVEL - 5.0f); 
 		}
 	}
 	// 初始化水位
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
-			w[i][j] = max(2.5f - a[i][j], 0.0f);
+			w[i][j] = max(10 - a[i][j], 0.0f);
 			if (a[i][j] < 0.0f) a[i][j] = 0.0f; // 确保海底不低于水面
 		}
 	}
