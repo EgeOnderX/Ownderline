@@ -5,7 +5,6 @@
 ## Ownderline0.5（working）
 - 优化**地形**生成。
 - 优化**准心显示**。
-- 添加**光照**系统（working）
 - 生成**植物**（working）
 - 生成**QX**（作为添加生物的前瞻）（working）
 - 更丰富的**细节**（working）
