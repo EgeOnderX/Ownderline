@@ -5,12 +5,13 @@
 ## Ownderline0.5（working）
 - 优化**地形**生成。
 - 优化**准心显示**。
+- 添加**光照**系统（working）
+- 生成**植物**（working）
+- 生成**QX**（作为添加生物的前瞻）（working）
 - 更丰富的**细节**（working）
 - 更**漂亮的水**（working）
 - 更**大的地图**（working）
   -**无限**的地图（移到Ownderline0.6）
-- 生成**植物**（working）
-- 生成**QX**（作为添加实体的前瞻）（working）
 ## Ownderline0.4
 - **帧率**是原来的**3.5倍**！
 - 使用了着色器，把显示**像素化**了。
