@@ -154,7 +154,7 @@ struct DoubleClickDetector {
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
 	float health = 100;
-	float hunger = 100;
+	float hunger = 100*2.5;
 	float bodyTemp = 37.0f;
 	float ambientTemp = 25.0f;
 	
@@ -199,6 +199,12 @@ inline float smoothstep(float edge0, float edge1, float x) {
 	float t = clamp((x - edge0)/(edge1 - edge0), 0.0f, 1.0f);
 	return t * t * (3.0f - 2.0f * t);
 }
+inline float FindHeighestASWinA3(Vector3 v1,Vector3 v2,Vector3 v3){
+	if(v1.y>v2.y&&v1.y>v3.y) return w[int(v1.x)][int(v1.z)];
+	if(v2.y>v1.y&&v2.y>v3.y) return w[int(v2.x)][int(v2.z)];
+	if(v3.y>v1.y&&v3.y>v2.y) return w[int(v3.x)][int(v3.z)];
+	return w[int(v1.x)][int(v1.z)];
+}
 /*+---------------------------------------------+*/
 /*|祖传屎山，build_PerlinNoise()需要用的，勿动！|*/class PerlinNoise {private:int permutation[512];public:PerlinNoise(unsigned int seed) {/*初始化排列表*/iota(permutation, permutation + 256, 0);shuffle(permutation, permutation + 256, default_random_engine(seed));/* 重复排列表以避免越界*/for (int i = 0; i < 256; ++i)permutation[256 + i] = permutation[i];}/*生成二维柏林噪声*/float noise(float x, float y) {/*确定网格单元*/int X = (int)floor(x) & 255;int Y = (int)floor(y) & 255;/*网格内相对坐标*/x -= floor(x);y -= floor(y);/*计算缓和曲线*/float u = fade(x);float v = fade(y);/*哈希索引周围四个点*/ int A = permutation[X] + Y;int AA = permutation[A & 255];int AB = permutation[(A + 1) & 255];int B = permutation[X + 1] + Y;int BA = permutation[B & 255];int BB = permutation[(B + 1) & 255];/*混合梯度贡献*/ float gradAA = grad(AA, x, y);float gradBA = grad(BA, x - 1, y);float gradAB = grad(AB, x, y - 1);float gradBB = grad(BB, x - 1, y - 1);/* 双线性插值*/float lerp1 = lerp(u, gradAA, gradBA);float lerp2 = lerp(u, gradAB, gradBB);return lerp(v, lerp1, lerp2);}private:/*缓和曲线：6t^5 - 15t^4 + 10t^3*/ static float fade(float t) {return t * t * t * (t * (t * 6 - 15) + 10);}/*线性插值*/static float lerp(float t, float a, float b) {return a + t * (b - a);}/*计算梯度值（使用预定义的四个方向）*/static float grad(int hash, float x, float y) {int h = hash & 3;switch (h) {case 0: return x + y;    /*右上方*/case 1: return -x + y;   /*左上方*/case 2: return x - y;    /*右下方*/case 3: return -x - y;   /*左下方*/default: return 0; /* 不会执行*/}}};
 /*+---------------------------------------------+*/
@@ -220,7 +226,7 @@ int main() {
 	camera.projection = CAMERA_PERSPECTIVE;
 	camera.up = {0, 1, 0};
 	
-	
+	srand(int(time(0)));
 	for (int i = 0+QXX-5; i < 40+QXX+5; i++) for (int j = 0+QXZ-5; j < 27+QXZ+5; j++) a[i][j]=1;
 	//for (int i = 1; i <=n; i++) {for (int j = 1; j <=m; j++) {a[i][j]=1;
 	while (!WindowShouldClose()) {
@@ -230,12 +236,9 @@ int main() {
 		moveSpeed=moveSpeed/1.8f*PlayerHeight;
 		Time+=0.005;
 		
-		//for(int i = 1; i <= n; i++) for(int j = 1; j <= m; j++) if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=max(Time-a[i][j],0);
+		//for(int i = 1; i <= n; i++) for(int j = 1; j <= m; j++) if(w[i][j]<max(Time-a[i][j],0))w[i][j]+=1;
 		
-		/*
-		int i=600,j=600;
-		w[i][j]=max(Time*100-a[i][j],0);
-		*/
+		//w[m/2][n/2]=max(Time*100-a[m/2][n/2],0);
 		//g_stats.ambientTemp = a[(int)playerX][(int)playerZ];// 更新环境温度
 		g_stats.Update(GetFrameTime());
 		
@@ -339,6 +342,8 @@ int main() {
 	//		for (int j =max( playerZ-BeAbleSee,1); j <= min(playerZ+BeAbleSee,m); j++) {
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
+				if(rand()%100000<1)w[i][j]+=0.05;
+				
 					// 定义四边形四个顶点（Y轴向上）
 					Vector3 v1 = { i, a[i][j], j };
 					Vector3 v2 = { i+1,a[i+1][j], j };
@@ -348,7 +353,7 @@ int main() {
 					// 绘制第一个三角形（逆时针顺序）
 					DrawTriangle3D(v1, v3, v2, Color{
 						100, 
-						(unsigned char)Clamp((v1.y+ v3.y +v2.y)*0.6*2, 0, 255),
+						(v1.y+ v3.y +v2.y)*0.6*2,
 						100, 
 						255
 					});
@@ -356,40 +361,56 @@ int main() {
 					// 绘制第二个三角形（逆时针顺序）
 					DrawTriangle3D(v2, v3, v4, Color{
 						100,
-						(unsigned char)Clamp((v2.y+ v3.y +v2.y)*0.6*2, 0, 255),
+						(v2.y+ v3.y +v2.y)*0.6*2,
 						100,
 						255
 					});
+				DrawLine3D(v1, v2, Color{
+					50, 
+					(v1.y+ v3.y +v2.y)*0.6+(v1.y+ v2.y +a[i+1][j-1])*0.6,
+					50, 
+					255
+				});
+				DrawLine3D(v3, v1, Color{
+					50, 
+					(v1.y+ v3.y +v2.y)*0.6+(v1.y+ v3.y +a[i-1][j+1])*0.6,
+					50, 
+					255
+				});
 				
 				// 定义四边形四个顶点（Y轴向上）
 				v1 = { i, a[i][j]+w[i][j], j };
 				v2 = { i+1,a[i+1][j]+w[i+1][j], j };
 				v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
 				v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
-				if (w[i][j]+w[i+1][j]+w[i][j+1]>0.0001) {
-					const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
+				if (FindHeighestASWinA3(v1,v2,v3)>0.001) {
+					const float depth =(w[i][j]+w[i+1][j]+w[i][j+1])/3;
 					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
 					const Color waterColor = {
-						(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
-						(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
-						(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
-						(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
+						30,  // R
+						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
+						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
+						alpha  // A
 					};
+					
 					// 绘制第一个三角形（逆时针顺序）
-					DrawTriangle3D(v1, v3, v2,ColorAlpha(BLUE,0.5f));
+					DrawTriangle3D(v1, v3, v2,waterColor);
+					//DrawLine3D(v1, v2, ColorAlpha(BLUE,0.5f));
+					//DrawLine3D(v3, v1, ColorAlpha(BLUE,0.5f));
 					
 				}
-				if (w[i+1][j]+w[i][j+1]+w[i+1][j+1]>0.0001) {
-					const float depth =w[i][j]+w[i+1][j]+w[i][j+1]*0.6;
+				if (FindHeighestASWinA3(v2,v3,v4)>0.001) {
+					const float depth =(w[i+1][j]+w[i][j+1]+w[i+1][j+1])/3;
 					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
 					const Color waterColor = {
-						(unsigned char)Clamp(50 + depth * 5, 50, 100),   // R
-						(unsigned char)Clamp(180 - depth * 3, 100, 220), // G 
-						(unsigned char)Clamp(220 + depth * 15, 220, 255),// B
-						(unsigned char)Clamp(100 + depth * 10, 120, 200) // Alpha
+						30,  // R
+						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
+						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
+						alpha  // A
 					};
+					
 					// 绘制第二个三角形（逆时针顺序）
-					DrawTriangle3D(v2, v3, v4,ColorAlpha(BLUE, 0.5f));
+					DrawTriangle3D(v2, v3, v4,waterColor);
 				}
 				
 			}
@@ -444,9 +465,9 @@ int main() {
 						Vector3 v1 = { i, a[i][j], j };
 						Vector3 v2 = { i+1,a[i+1][j], j };
 						Vector3 v3 = { i,a[i][j+1], j+1 };
-						DrawLine3D(v1, v2, GRAY);
-						DrawLine3D(v2, v3, GRAY);
-						DrawLine3D(v3, v1, GRAY);
+						//DrawLine3D(v1, v2, GRAY);
+						//DrawLine3D(v2, v3, GRAY);
+						//DrawLine3D(v3, v1, GRAY);
 					
 				}
 			}
@@ -646,13 +667,12 @@ inline void Playerdo(Camera3D camera) {
 		lastHit = hit; // 存储当前帧的命中信息
 		// 破坏方块（鼠标左键）
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			HitInfo hit = Raycast(camera.position, direction, 10.0f);
+			HitInfo hit = Raycast(camera.position, direction, 100.0f);
 			if (hit.i != -1) {
 				//if (hit.isTerrain) {
 				a[(int)hit.v1.x][(int)hit.v1.z]--;
 				a[(int)hit.v2.x][(int)hit.v2.z]--;
 				a[(int)hit.v3.x][(int)hit.v3.z]--;
-				
 				
 				//} 
 			}
@@ -665,6 +685,7 @@ inline void Playerdo(Camera3D camera) {
 				a[(int)hit.v1.x][(int)hit.v1.z]++;
 				a[(int)hit.v2.x][(int)hit.v2.z]++;
 				a[(int)hit.v3.x][(int)hit.v3.z]++;
+				
 				/*
 				// 根据法线方向确定放置位置
 				int placeI = hit.i + round(hit.normal.x);
@@ -815,7 +836,7 @@ inline void build_PerlinNoise() {
 	*/
 	TraceLog(LOG_INFO, "[5/5]:地形高度调整");
 	// 修改阶段5：地形高度调整（新增）
-	float landBoost = 8.0f; // 陆地整体抬升量
+	float landBoost = 30; // 陆地整体抬升量
 	float mountainBoost = 15.0f; // 山脉额外抬升
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
@@ -852,13 +873,15 @@ inline void build_PerlinNoise() {
 			// 确保最低地形不低于水面
 		}
 	}
+	/*
 	// 初始化水位
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
 			w[i][j] = max(10 - a[i][j], 0.0f);
-			if (a[i][j] < 0.0f) a[i][j] = 0.0f; // 确保海底不低于水面
+			//if (a[i][j] < 0.0f) a[i][j] = 0.0f; // 确保海底不低于水面
 		}
 	}
+	*/
 	/*
 	const float TREE_HEIGHT = 15.0f;
 	for (int i = 5; i <= n-5; i += 2) {
@@ -1039,7 +1062,7 @@ void flow() {
 	for(int i = start_i; i <= end_i; ++i) {
 		for(int j = start_j; j <= end_j; ++j) {
 			const float currentWater = w[i][j];
-			if(currentWater < 0.0001f){
+			if(currentWater < 0.001f){
 				w[i][j]=0;
 				continue;
 			}
