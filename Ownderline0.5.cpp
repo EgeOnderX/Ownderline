@@ -26,6 +26,7 @@ float scale = 0.005;
 const int octaves = 7;
 float BeAbleSee=64;
 
+
 float flowRate = 0.8f;      // 水流速率
 float waterViscosity = 0.15f; // 水流粘滞系数
 float inertia[1030][1030][2];// 水流惯性矢量场
@@ -154,7 +155,7 @@ struct DoubleClickDetector {
 // 在全局变量区添加生存状态结构体
 struct SurvivalStats {
 	float health = 100;
-	float hunger = 100*2.5;
+	float hunger = 100;
 	float bodyTemp = 37.0f;
 	float ambientTemp = 25.0f;
 	
@@ -194,6 +195,7 @@ void Playerdo(Camera3D camera);/*玩家操作*/
 void DrawHUD();
 void InitFile();
 float GetTerrainHeight(float x, float z);
+Vector3 Get3DMovement(float dx, float dz, float stepSize);
 HitInfo Raycast(Vector3 start, Vector3 dir, float maxDist);
 inline float smoothstep(float edge0, float edge1, float x) {
 	float t = clamp((x - edge0)/(edge1 - edge0), 0.0f, 1.0f);
@@ -329,7 +331,7 @@ int main() {
 		BeginMode3D(camera);
 		BeginScissorMode(0,0,GetScreenWidth(),GetScreenHeight());
 		// 绘制地形
-		BeginBlendMode(BLEND_ALPHA);
+		
 		
 		for (int i = 0; i < 40; i++) {
 			for (int j = 0; j < 27; j++) {
@@ -340,31 +342,32 @@ int main() {
 		}
 	//	for (int i = max(playerX-BeAbleSee,1); i <= min(playerX+BeAbleSee,n); i++) {
 	//		for (int j =max( playerZ-BeAbleSee,1); j <= min(playerZ+BeAbleSee,m); j++) {
+		BeginBlendMode(BLEND_ALPHA);
 		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
 			for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
-				if(rand()%100000<1)w[i][j]+=0.05;
+				if(rand()%1000000<1)w[i][j]+=0.01;
 				
-					// 定义四边形四个顶点（Y轴向上）
-					Vector3 v1 = { i, a[i][j], j };
-					Vector3 v2 = { i+1,a[i+1][j], j };
-					Vector3 v3 = { i,a[i][j+1], j+1 };
-					Vector3 v4 = { i+1,a[i+1][j+1], j+1 };
-					
-					// 绘制第一个三角形（逆时针顺序）
-					DrawTriangle3D(v1, v3, v2, Color{
-						100, 
-						(v1.y+ v3.y +v2.y)*0.6*2,
-						100, 
-						255
-					});
-					
-					// 绘制第二个三角形（逆时针顺序）
-					DrawTriangle3D(v2, v3, v4, Color{
-						100,
-						(v2.y+ v3.y +v2.y)*0.6*2,
-						100,
-						255
-					});
+				// 定义四边形四个顶点（Y轴向上）
+				Vector3 v1 = { i, a[i][j], j };
+				Vector3 v2 = { i+1,a[i+1][j], j };
+				Vector3 v3 = { i,a[i][j+1], j+1 };
+				Vector3 v4 = { i+1,a[i+1][j+1], j+1 };
+				
+				// 绘制第一个三角形（逆时针顺序）
+				DrawTriangle3D(v1, v3, v2, Color{
+					100, 
+					(v1.y+ v3.y +v2.y)*0.6*2,
+					100, 
+					255
+				});
+				
+				// 绘制第二个三角形（逆时针顺序）
+				DrawTriangle3D(v2, v3, v4, Color{
+					100,
+					(v2.y+ v3.y +v2.y)*0.6*2,
+					100,
+					255
+				});
 				DrawLine3D(v1, v2, Color{
 					50, 
 					(v1.y+ v3.y +v2.y)*0.6+(v1.y+ v2.y +a[i+1][j-1])*0.6,
@@ -378,21 +381,61 @@ int main() {
 					255
 				});
 				
+				
+			}
+		}
+		EndBlendMode();
+		BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+		rlDisableBackfaceCulling(); 
+		for (int i = playerX-BeAbleSee; i <= playerX+BeAbleSee; i++) {
+			for (int j =playerZ-BeAbleSee; j <= playerZ+BeAbleSee; j++) {
+				
+				/*
+				if (w[i][j] > 0.01f) {
+				Vector3 waterPos = { 
+				(float)i, 
+				a[i][j] + w[i][j] * 0.5f,  // 精确的水体位置
+				(float)j 
+				};
+				
+				// 动态颜色：水深影响颜色和透明度
+				const float depth = w[i][j];
+				const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+				const Color waterColor = {
+				30,  // R
+				(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
+				(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
+				alpha  // A
+				};
+				
+				DrawCubeV(waterPos, 
+				Vector3{1.0f, w[i][j], 1.0f}, 
+				waterColor
+				);
+				}
+				
+				*/
 				// 定义四边形四个顶点（Y轴向上）
-				v1 = { i, a[i][j]+w[i][j], j };
-				v2 = { i+1,a[i+1][j]+w[i+1][j], j };
-				v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
-				v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
+				Vector3 v1 = { i, a[i][j]+w[i][j], j };
+				Vector3 v2 = { i+1,a[i+1][j]+w[i+1][j], j };
+				Vector3 v3 = { i,a[i][j+1]+w[i][j+1], j+1 };
+				Vector3 v4 = { i+1,a[i+1][j+1]+w[i+1][j+1], j+1 };
 				if (FindHeighestASWinA3(v1,v2,v3)>0.001) {
 					const float depth =(w[i][j]+w[i+1][j]+w[i][j+1])/3;
-					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
-					const Color waterColor = {
-						30,  // R
-						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
-						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
-						alpha  // A
-					};
+					const unsigned char alpha = (unsigned char)Clamp(50 + depth * 15, 50, 150);
+					const float alphaFactor = alpha / 255.0f;
 					
+					// 修正颜色公式：更平缓的颜色过渡
+					const float R = Clamp(30 + depth * 0.8f, 30.0f, 200.0f) * alphaFactor; // 降低R增长速率
+					const float G = Clamp(80 - depth * 1.0f, 30.0f, 200.0f) * alphaFactor; // 防止G归零
+					const float B = Clamp(150 + depth * 2.5f, 150.0f, 255.0f) * alphaFactor; // 降低B增长速率
+					
+					const Color waterColor = {
+						(unsigned char)Clamp(R, 0, 255),
+						(unsigned char)Clamp(G, 0, 255),
+						(unsigned char)Clamp(B, 0, 255),
+						alpha
+					};
 					// 绘制第一个三角形（逆时针顺序）
 					DrawTriangle3D(v1, v3, v2,waterColor);
 					//DrawLine3D(v1, v2, ColorAlpha(BLUE,0.5f));
@@ -401,20 +444,30 @@ int main() {
 				}
 				if (FindHeighestASWinA3(v2,v3,v4)>0.001) {
 					const float depth =(w[i+1][j]+w[i][j+1]+w[i+1][j+1])/3;
-					const unsigned char alpha = (unsigned char)Clamp(80 + depth * 20, 100, 200);
+					const unsigned char alpha = (unsigned char)Clamp(50 + depth * 15, 50, 150);
+					const float alphaFactor = alpha / 255.0f;
+					
+					// 修正颜色公式：更平缓的颜色过渡
+					const float R = Clamp(30 + depth * 0.8f, 30.0f, 200.0f) * alphaFactor; // 降低R增长速率
+					const float G = Clamp(80 - depth * 1.0f, 30.0f, 200.0f) * alphaFactor; // 防止G归零
+					const float B = Clamp(150 + depth * 2.5f, 150.0f, 255.0f) * alphaFactor; // 降低B增长速率
+					
 					const Color waterColor = {
-						30,  // R
-						(unsigned char)Clamp(150 - depth * 5, 50, 200),  // G
-						(unsigned char)Clamp(200 + depth * 10, 200, 250),// B
-						alpha  // A
+						(unsigned char)Clamp(R, 0, 255),
+						(unsigned char)Clamp(G, 0, 255),
+						(unsigned char)Clamp(B, 0, 255),
+						alpha
 					};
 					
 					// 绘制第二个三角形（逆时针顺序）
 					DrawTriangle3D(v2, v3, v4,waterColor);
 				}
 				
+				
 			}
 		}
+		rlEnableBackfaceCulling(); 
+		EndBlendMode();
 		/*
 		// 在绘制地形循环后添加
 		for (auto& plant : plants) {
@@ -438,7 +491,7 @@ int main() {
 			}
 		}
 		*/
-		EndBlendMode();
+		
 		if(cameraMode != FIRST_PERSON){
 			// 计算立方体中心位置（考虑玩家高度）
 			Vector3 cubeCenter = {
@@ -458,6 +511,7 @@ int main() {
 			
 			rlPopMatrix();
 		}
+		
 		if(lastHit.i != -1) {
 			for (int i = lastHit.i-5; i <= lastHit.i+1+5; i++) {
 				for (int j =lastHit.j-5; j <= lastHit.j+1+5; j++) {
@@ -630,27 +684,90 @@ inline void Playerdo(Camera3D camera) {
 	if (IsKeyDown(KEY_S)) {inputDir.y = -1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
 	if (IsKeyDown(KEY_A)) {inputDir.x = 1;g_stats.hunger = max(g_stats.hunger - hun*2, 0);}
 	if (IsKeyDown(KEY_D)) {inputDir.x = -1;g_stats.hunger = max(g_stats.hunger -hun*2, 0);}
-	float currentSpeed = moveSpeed;
-	if (isSprinting && inputDir.y == 1) { // 只有向前时加速
-		currentSpeed *= 2.0f; // 疾跑速度翻倍
-		// 这里可以添加体力消耗逻辑
-		g_stats.hunger = max(g_stats.hunger - 2.5*hun, 0);
-	}
 	
-	// 修复方向计算
+	// ===== 三维移动逻辑核心 =====
+	float deltaTime = GetFrameTime();
+	float currentSpeed = moveSpeed;
+	
+	// 1. 计算基础移动方向（已考虑视角旋转）
 	float cosTheta = cosf(DEG2RAD * playerRotation);
 	float sinTheta = sinf(DEG2RAD * playerRotation);
-	Vector3 moveDir = {
-		inputDir.x * cosTheta + inputDir.y * sinTheta,  // 修复方向符号
-		0.0f,
-		inputDir.y * cosTheta - inputDir.x * sinTheta   // 修复方向符号
+	Vector3 baseMoveDir = {
+		inputDir.x * cosTheta + inputDir.y * sinTheta,
+		0.0f, // 初始Y分量为0
+		inputDir.y * cosTheta - inputDir.x * sinTheta
 	};
-	// 应用速度参数和帧时间
-	float deltaTime = GetFrameTime();
-	playerX = Clamp(playerX + moveDir.x * currentSpeed * deltaTime, 1.0f, n);
-	playerZ = Clamp(playerZ + moveDir.z * currentSpeed * deltaTime, 1.0f, m);
 	
+	// 2. 坡度检测与速度调整
+	if (Vector3Length(baseMoveDir) > 0.01f) {
+		// 标准化移动方向
+		Vector3 moveDirNorm = Vector3Normalize(baseMoveDir);
+		
+		// 前方采样点（预测1单位距离的地形）
+		Vector3 samplePos = {
+			playerX + moveDirNorm.x * 1.5f,
+			0,
+			playerZ + moveDirNorm.z * 1.5f
+		};
+		samplePos.y = GetTerrainHeight(samplePos.x, samplePos.z);
+		
+		// 当前点高度
+		Vector3 currentPos = {
+			playerX,
+			GetTerrainHeight(playerX, playerZ),
+			playerZ
+		};
+		
+		// 计算坡度角度（弧度转角度）
+		float heightDiff = samplePos.y - currentPos.y;
+		float horizontalDist = Vector2Distance(
+			(Vector2){playerX, playerZ},
+			(Vector2){samplePos.x, samplePos.z}
+			);
+		float slopeAngle = atan2f(heightDiff, horizontalDist) * RAD2DEG;
+		
+		// 动态速度调整（可调参数）
+		float slopeFactor = 1.0f;
+		const float MAX_CLIMB_ANGLE = 90.0f; // 最大可攀爬角度
+		const float MAX_DOWN_ANGLE = -90.0f;  // 最大安全下坡角度
+		
+		if (slopeAngle > 5.0f) { 
+			// 上坡减速曲线：5度开始减速，度时速度为30%
+			slopeFactor = 1.0f - smoothstep(5.0f, MAX_CLIMB_ANGLE, slopeAngle) * 0.9f;
+		}
+		else if (slopeAngle < -5.0f) {
+			// 下坡加速：-5度开始加速，度时速度150%
+			slopeFactor = 1.0f + smoothstep(-5.0f, MAX_DOWN_ANGLE, slopeAngle) * 0.5f;
+		}
+		
+		// 应用速度修正
+		currentSpeed *= Clamp(slopeFactor, 0.3f, 1.5f);
+		
+		// 疾跑状态额外修正
+		if (isSprinting && inputDir.y == 1) {
+			currentSpeed *= (slopeAngle > 0 ? 1.8f : 2.2f); // 上坡疾跑增幅降低
+		}
+	}
 	
+	// 3. 执行三维移动
+	if (currentSpeed > 0.01f) {
+		// 计算实际移动向量
+		Vector3 finalMove = Vector3Scale(
+			Vector3Normalize(baseMoveDir),
+			currentSpeed * deltaTime
+			);
+		
+		// 预测新位置
+		float newX = playerX + finalMove.x;
+		float newZ = playerZ + finalMove.z;
+		
+		// 高度适配（确保角色贴地）
+		float newY = GetTerrainHeight(newX, newZ);
+		
+		// 应用移动（XZ轴）
+		playerX = Clamp(newX, 1.0f, n);
+		playerZ = Clamp(newZ, 1.0f, m);
+	}
 	
 	// 交互操作
 	if (cameraMode == FIRST_PERSON) {
@@ -703,7 +820,12 @@ inline void Playerdo(Camera3D camera) {
 			}
 		}
 	}
-	
+	static Vector3 velocity = {0};
+	if (Vector3Length(baseMoveDir) > 0) {
+		velocity = Vector3Lerp(velocity, baseMoveDir, 10.0f * deltaTime);
+	} else {
+		velocity = Vector3Lerp(velocity, Vector3Zero(), 5.0f * deltaTime);
+	}
 }
 /*------------------*/
 inline void build_PerlinNoise() {
@@ -836,7 +958,7 @@ inline void build_PerlinNoise() {
 	*/
 	TraceLog(LOG_INFO, "[5/5]:地形高度调整");
 	// 修改阶段5：地形高度调整（新增）
-	float landBoost = 30; // 陆地整体抬升量
+	float landBoost = 20; // 陆地整体抬升量
 	float mountainBoost = 15.0f; // 山脉额外抬升
 	for (int i = 1; i <= n; i++) {
 		for (int j = 1; j <= m; j++) {
@@ -1045,6 +1167,7 @@ inline float GetTerrainHeight(float x, float z) {
 void flow() {
 	static const int dx[] = {-1, 0, 1, 0}; // 四邻域方向
 	static const int dy[] = {0, -1, 0, 1};
+		
 	const float flowRate = 2.5f;           // 提升基础流动速率
 	const float inertiaFactor = 0.35f;     // 增强惯性影响
 	const float viscosity = 0.75f;         // 降低粘滞衰减
@@ -1072,8 +1195,8 @@ void flow() {
 			
 			// 边界消减（保持自然流失）
 			if(i <= 2 || i >= n-1 || j <= 2 || j >= m-1) {
-				neww[i][j] -= min(0.8f, currentWater * 0.4f);
-				continue;
+				neww[i][j] -= currentWater * 0.4f;
+				//continue;
 			}
 			
 			// 动态压力计算（考虑周围平均高度）
@@ -1147,6 +1270,20 @@ void flow() {
 	}
 }
 
+Vector3 Get3DMovement(float dx, float dz, float stepSize) {
+	Vector3 startPos = {playerX, GetTerrainHeight(playerX, playerZ), playerZ};
+	Vector3 targetPos = {playerX + dx, 0, playerZ + dz};
+	
+	// 预测目标点高度
+	targetPos.y = GetTerrainHeight(targetPos.x, targetPos.z);
+	
+	// 计算三维方向向量
+	Vector3 dir = Vector3Subtract(targetPos, startPos);
+	dir = Vector3Normalize(dir);
+	
+	// 应用三维步长
+	return Vector3Add(startPos, Vector3Scale(dir, stepSize));
+}
 inline void InitFile(){
 	freopen("dither.fs","w",stdout);
 	cout<<R"(#version 330
