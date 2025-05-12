@@ -12,8 +12,10 @@
 #define max(_a,_b) (_a)>(_b)?(_a):(_b)
 using namespace std;
 
-const int renderWidth = 640/1;   // 低分辨率宽度（数值越小像素越明显）
-const int renderHeight = 480/1;  // 低分辨率高度
+bool ispause=0;
+
+int renderWidth = 800/1;   // 低分辨率宽度（数值越小像素越明显）
+int renderHeight = 600/1;  // 低分辨率高度
 RenderTexture2D target;        // 离屏渲染目标
 Shader ditherShader;           // 抖动着色器
 // 地形参数
@@ -38,6 +40,7 @@ float playerRotation = 0.0f;      // 玩家水平旋转角度
 float moveSpeed; 
 
 float QXX = n/ 2.0f;
+float QXY = 100;
 float QXZ = m/ 2.0f;
 
 float lastWPressedTime = 0.0;      // 上次按下W的时间
@@ -213,9 +216,8 @@ inline float FindHeighestASWinA3(Vector3 v1,Vector3 v2,Vector3 v3){
 int main() {
 	InitFile();
 	build_PerlinNoise();
-	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI );
-	
-	InitWindow(640, 480, "Ownderline0.5");
+	SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE /*| FLAG_WINDOW_HIGHDPI*/ );
+	InitWindow(800,600, "Ownderline0.5");
 	target = LoadRenderTexture(renderWidth, renderHeight); // 创建离屏画布
 	SetTextureFilter(target.texture, TEXTURE_FILTER_POINT); // 关键：设置点过滤模式
 	ditherShader = LoadShader(0, "dither.fs");
@@ -229,9 +231,20 @@ int main() {
 	camera.up = {0, 1, 0};
 	
 	srand(int(time(0)));
-	for (int i = 0+QXX-5; i < 40+QXX+5; i++) for (int j = 0+QXZ-5; j < 27+QXZ+5; j++) a[i][j]=1;
+	//for (int i = 0+QXX-5; i < 40+QXX+5; i++) for (int j = 0+QXZ-5; j < 27+QXZ+5; j++) a[i][j]=1;
 	//for (int i = 1; i <=n; i++) {for (int j = 1; j <=m; j++) {a[i][j]=1;
 	while (!WindowShouldClose()) {
+		if (IsKeyPressed(KEY_P)) {
+			if(ispause==1){
+				ispause=0;
+				DisableCursor();
+			}
+			else if(ispause==0){
+				ispause=1;
+				EnableCursor();
+			}
+		}
+		//if(ispause) continue;
 		//if(w[256][256]<0.1) w[256][256]=0.1;
 		//w[256][256]+=10.0/w[256][256];
 		moveSpeed=g_stats.hunger*0.06f+1;
@@ -332,10 +345,9 @@ int main() {
 		BeginScissorMode(0,0,GetScreenWidth(),GetScreenHeight());
 		// 绘制地形
 		
-		
 		for (int i = 0; i < 40; i++) {
 			for (int j = 0; j < 27; j++) {
-				Vector3 pos = { (float)i+QXX, 2, (float)j+QXZ };
+				Vector3 pos = { i+QXX, QXY, j+QXZ };
 				if(QX[i][j]=='#') DrawCubeV(pos, {1.0f, 1.0f, 1.0f}, BLACK);
 				else if(QX[i][j]=='.') DrawCubeV(pos, {1.0f, 1.0f, 1.0f}, WHITE);
 			}
@@ -660,6 +672,7 @@ inline void Playerdo(Camera3D camera) {
 	if (!shiftPressed) {
 		isDoubleClickHeld = false;
 	}
+	
 	if (IsKeyReleased(KEY_LEFT_SHIFT)) PlayerHeight=1.8f;
 	if (IsKeyDown(KEY_SPACE)) w[(int)round(playerX)][(int)round(playerZ)] += 100.0;
 	if (IsKeyDown(KEY_T)) {
